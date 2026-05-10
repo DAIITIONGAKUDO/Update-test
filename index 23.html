@@ -1,0 +1,4128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>レッスン室予約システム</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<style>
+/* ===== Base ===== */
+:root {
+  --primary: #2D5A8E;
+  --primary-dark: #1e3f66;
+  --primary-light: #e8f0f9;
+  --accent: #E8834B;
+  --success: #3a9e6e;
+  --danger: #c0392b;
+  --danger-light: #fdf0ef;
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --border: #dde1e8;
+  --text: #1a1f2e;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --admin-primary: #3d4d6b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ===== Screens ===== */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; flex-direction: column; overflow-y: auto; }
+
+/* ===== Center Card ===== */
+.center-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#screen-code, #screen-auth-choice, #screen-register,
+#screen-login, #screen-admin-auth {
+  justify-content: center;
+  align-items: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #1a2f4e 0%, #2D5A8E 100%);
+  min-height: 100vh;
+}
+
+.logo-area { text-align: center; margin-bottom: 8px; }
+.logo-icon {
+  font-size: 48px;
+  width: 80px; height: 80px;
+  background: var(--primary-light);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  color: var(--primary);
+}
+.admin-icon { background: #e8edf3; color: var(--admin-primary); }
+.logo-area h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+.logo-area .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+
+/* ===== Forms ===== */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+input[type="text"], input[type="number"], input[type="date"],
+input[type="password"], select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  background: #fafbfc;
+  color: var(--text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45,90,142,0.12);
+  background: white;
+}
+
+input:disabled, select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Buttons ===== */
+.btn-primary {
+  padding: 12px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  width: 100%;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+.btn-secondary:hover { background: var(--primary-light); }
+
+.btn-ghost {
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  transition: color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { color: var(--text); background: var(--bg); }
+
+.btn-primary-sm {
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-sm:hover { background: var(--primary-dark); }
+
+.btn-secondary-sm {
+  padding: 8px 14px;
+  background: white;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-danger-sm {
+  padding: 6px 12px;
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid #f0b8b5;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-danger-sm:hover { background: var(--danger); color: white; }
+
+.btn-ghost-sm {
+  padding: 6px 12px;
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-ghost-sm:hover { color: white; border-color: rgba(255,255,255,0.6); }
+
+.monitor-link a, .admin-link button {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+/* ===== Header ===== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.admin-header { background: var(--admin-primary); }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.logo-small { font-size: 22px; }
+.app-header h2 { font-size: 17px; font-weight: 700; color: white; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.user-badge {
+  font-size: 13px;
+  background: rgba(255,255,255,0.15);
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: white;
+}
+
+/* ===== Navigation ===== */
+.main-nav {
+  display: flex;
+  background: white;
+  border-bottom: 1.5px solid var(--border);
+  overflow-x: auto;
+}
+.nav-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 14px 8px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-btn:hover { color: var(--primary); }
+.nav-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ===== Tabs ===== */
+.tab-content { display: none; flex: 1; overflow-y: auto; min-height: 0; }
+.tab-content.active { display: block; }
+.tab-inner { padding: 20px 16px; max-width: 1100px; margin: 0 auto; }
+.tab-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+/* ===== Room Selector ===== */
+.room-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: white;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+}
+.room-selector-row label {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.room-selector-row select { margin: 0; }
+
+/* ===== Week Navigation ===== */
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.week-btn {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.week-btn:hover { background: var(--primary-light); color: var(--primary); }
+.week-label { font-size: 15px; font-weight: 600; min-width: 200px; text-align: center; }
+
+/* ===== Weekly Calendar ===== */
+.calendar-wrapper { overflow-x: auto; }
+.weekly-calendar {
+  display: grid;
+  grid-template-columns: 56px repeat(7, 1fr);
+  min-width: 580px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--border);
+  gap: 1px;
+}
+
+.cal-header {
+  background: var(--primary);
+  color: white;
+  padding: 10px 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cal-header.today-header { background: var(--accent); }
+.cal-header-empty { background: var(--primary); }
+
+.cal-period-label {
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cal-cell {
+  background: white;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.cal-cell.cal-cell-half {
+  min-height: 16px;
+  border-top: 1px dashed var(--border);
+}
+.cal-cell.current-slot {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.cal-cell:hover { background: var(--primary-light); }
+.cal-cell.booked {
+  background: #fde8e8;
+  cursor: pointer;
+}
+.cal-cell.booked:hover { background: #fcd0d0; }
+.cal-cell.half-booked {
+  background: #fff8e1;
+  cursor: pointer;
+}
+.cal-cell.half-booked:hover { background: #fff3cd; }
+.cal-cell.my-booking {
+  background: #d4edda;
+  cursor: pointer;
+}
+.cal-cell.my-booking:hover { background: #c3e6cb; }
+.cal-cell.today-col { background: #fffbf0; }
+.cal-cell.today-col:hover { background: #fff3cc; }
+.cal-cell.past { opacity: 0.45; cursor: default; }
+.cal-cell.past:hover { background: white; }
+
+.cell-content {
+  font-size: 11px;
+  text-align: center;
+  padding: 4px;
+  line-height: 1.3;
+}
+.cell-content .booker { color: var(--danger); font-weight: 600; }
+.cell-content .my-label { color: var(--success); font-weight: 600; }
+.cell-available-icon { color: var(--text-muted); font-size: 16px; }
+
+/* ===== Search ===== */
+.search-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.search-form .form-group { flex: 1; min-width: 160px; }
+.search-form .btn-primary { width: auto; padding: 11px 24px; }
+
+.search-results { display: flex; flex-direction: column; gap: 10px; }
+.search-result-card {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.search-result-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.period-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.period-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.period-pill.free { background: #d4edda; color: #155724; }
+.period-pill.busy { background: #fde8e8; color: #721c24; }
+.no-results { text-align: center; padding: 40px; color: var(--text-secondary); }
+
+/* ===== My Reservations ===== */
+.reservations-list { display: flex; flex-direction: column; gap: 10px; }
+.reservation-card {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.reservation-info { display: flex; flex-direction: column; gap: 2px; }
+.reservation-title { font-weight: 700; font-size: 15px; }
+.reservation-detail { font-size: 13px; color: var(--text-secondary); }
+
+/* ===== Admin ===== */
+.admin-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.admin-section-header h3 { font-size: 18px; font-weight: 700; }
+.admin-filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.admin-filter-row input, .admin-filter-row select { flex: 1; min-width: 130px; }
+
+.admin-list { display: flex; flex-direction: column; gap: 8px; }
+.admin-card {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.admin-card-info { display: flex; flex-direction: column; gap: 2px; }
+.admin-card-name { font-weight: 700; font-size: 15px; }
+.admin-card-sub { font-size: 13px; color: var(--text-secondary); }
+.admin-card-actions { display: flex; gap: 8px; }
+
+/* ===== Settings ===== */
+.settings-section {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-section h4 { font-size: 16px; font-weight: 700; }
+.settings-section .btn-primary { width: auto; padding: 10px 20px; }
+.settings-section .btn-secondary { width: auto; padding: 10px 20px; }
+
+/* ===== Modal ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal.hidden { display: none; }
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.modal-box {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-box h3 { font-size: 18px; font-weight: 700; }
+.modal-info { font-size: 14px; color: var(--text-secondary); }
+.modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+.modal-actions .btn-ghost { flex: 1; border: 1.5px solid var(--border); }
+.modal-actions .btn-primary { flex: 2; }
+
+/* ===== Error / Status ===== */
+.error-msg {
+  font-size: 13px;
+  color: var(--danger);
+  background: var(--danger-light);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #f0b8b5;
+}
+.success-msg {
+  font-size: 13px;
+  color: #155724;
+  background: #d4edda;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #c3e6cb;
+}
+.hidden { display: none !important; }
+
+/* ===== Loading ===== */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  font-weight: 600;
+  color: var(--primary);
+  gap: 10px;
+}
+.spinner {
+  width: 24px; height: 24px;
+  border: 3px solid var(--primary-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-secondary);
+}
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ===== Responsive ===== */
+@media (max-width: 480px) {
+  .center-card { padding: 28px 20px; }
+  .tab-inner { padding: 16px 12px; }
+  .weekly-calendar { grid-template-columns: 44px repeat(7, 1fr); }
+  .modal-box { padding: 24px 16px; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- School Code Screen -->
+  <div id="screen-code" class="screen active">
+    <div class="center-card">
+      <div class="logo-area">
+        <div class="logo-icon">♪</div>
+        <h1>レッスン室予約システム</h1>
+        <p class="subtitle">学校コードを入力してください</p>
+      </div>
+      <div class="form-group">
+        <input type="text" id="school-code-input" placeholder="学校コード" maxlength="10" autocomplete="off">
+      </div>
+      <div id="code-error" class="error-msg hidden"></div>
+      <button id="btn-code-submit" class="btn-primary">次へ</button>
+      <div class="admin-link">
+        <button id="btn-to-admin" class="btn-ghost">管理者画面へ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Choice Screen -->
+  <div id="screen-auth-choice" class="screen">
+    <div class="center-card">
+      <div class="logo-area">
+        <div class="logo-icon">♪</div>
+        <h1>ようこそ</h1>
+        <p class="subtitle" id="school-name-display"></p>
+      </div>
+      <button id="btn-go-login" class="btn-primary">ログイン</button>
+      <button id="btn-go-register" class="btn-secondary">新規登録</button>
+      <button id="btn-back-to-code" class="btn-ghost">← 戻る</button>
+    </div>
+  </div>
+
+  <!-- Register Screen -->
+  <div id="screen-register" class="screen">
+    <div class="center-card">
+      <div class="logo-area">
+        <h1>新規登録</h1>
+      </div>
+      <div class="form-group">
+        <label>学年</label>
+        <select id="reg-grade">
+          <option value="">選択してください</option>
+          <option value="1">1年生</option>
+          <option value="2">2年生</option>
+          <option value="3">3年生</option>
+          <option value="他科">他科</option>
+        </select>
+      </div>
+      <div id="reg-dept-group" class="form-group hidden">
+        <label>学科・学年メモ（任意）</label>
+        <input type="text" id="reg-dept" placeholder="例：普通科2年">
+      </div>
+      <div class="form-group">
+        <label>出席番号</label>
+        <input type="number" id="reg-number" placeholder="例：15" min="1" max="50">
+      </div>
+      <div class="form-group">
+        <label>名前</label>
+        <input type="text" id="reg-name" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label>担当楽器</label>
+        <select id="reg-instrument">
+          <option value="">読み込み中...</option>
+        </select>
+      </div>
+      <div id="reg-error" class="error-msg hidden"></div>
+      <button id="btn-register" class="btn-primary">登録する</button>
+      <button id="btn-back-to-choice" class="btn-ghost">← 戻る</button>
+    </div>
+  </div>
+
+  <!-- Login Screen -->
+  <div id="screen-login" class="screen">
+    <div class="center-card">
+      <div class="logo-area">
+        <h1>ログイン</h1>
+      </div>
+      <div class="form-group">
+        <label>学年</label>
+        <select id="login-grade">
+          <option value="">学年を選択</option>
+          <option value="1">1年生</option>
+          <option value="2">2年生</option>
+          <option value="3">3年生</option>
+          <option value="他科">他科</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>名前</label>
+        <select id="login-name" disabled>
+          <option value="">先に学年を選択してください</option>
+        </select>
+      </div>
+      <div id="login-error" class="error-msg hidden"></div>
+      <button id="btn-login" class="btn-primary">ログイン</button>
+      <button id="btn-back-to-choice-from-login" class="btn-ghost">← 戻る</button>
+    </div>
+  </div>
+
+  <!-- Main Student Screen -->
+  <div id="screen-main" class="screen" style="overflow-y:auto;">
+    <header class="app-header" style="flex-shrink:0;">
+      <div class="header-left">
+        <div class="logo-small">♪</div>
+        <h2>レッスン室予約</h2>
+      </div>
+      <div class="header-right">
+        <span id="user-display" class="user-badge"></span>
+        <button id="btn-logout" class="btn-ghost-sm">ログアウト</button>
+      </div>
+    </header>
+
+    <div class="main-nav" style="flex-shrink:0;">
+      <button class="nav-btn active" data-tab="booking">週間予約</button>
+      <button class="nav-btn" data-tab="search">空き室検索</button>
+      <button class="nav-btn" data-tab="my-reservations">自分の予約</button>
+    </div>
+
+    <!-- Booking Tab -->
+    <div id="tab-booking" class="tab-content active" style="overflow-y:auto;">
+      <div class="tab-inner">
+        <div class="room-selector-row">
+          <label>レッスン室</label>
+          <select id="booking-room-select">
+            <option value="">レッスン室を選択してください</option>
+          </select>
+        </div>
+        <div class="week-nav">
+          <button id="prev-week" class="week-btn">&#8249;</button>
+          <span id="week-label" class="week-label"></span>
+          <button id="next-week" class="week-btn">&#8250;</button>
+        </div>
+        <div class="calendar-wrapper" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px);">
+          <div id="weekly-calendar" class="weekly-calendar">
+            <!-- Generated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Tab -->
+    <div id="tab-search" class="tab-content" style="overflow-y:auto;">
+      <div class="tab-inner">
+        <h3 class="tab-title">空き室検索</h3>
+        <div class="search-form">
+          <div class="form-group">
+            <label>日付を選択</label>
+            <input type="date" id="search-date">
+          </div>
+          <button id="btn-search" class="btn-primary">検索する</button>
+        </div>
+        <div id="search-results" class="search-results"></div>
+      </div>
+    </div>
+
+    <!-- My Reservations Tab -->
+    <div id="tab-my-reservations" class="tab-content" style="overflow-y:auto;">
+      <div class="tab-inner">
+        <h3 class="tab-title">自分の予約一覧</h3>
+        <div id="my-reservations-list" class="reservations-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Password Screen -->
+  <div id="screen-admin-auth" class="screen">
+    <div class="center-card">
+      <div class="logo-area">
+        <div class="logo-icon admin-icon">⚙</div>
+        <h1>管理者認証</h1>
+      </div>
+      <div class="form-group">
+        <label>管理者パスワード</label>
+        <input type="password" id="admin-password-input" placeholder="パスワードを入力">
+      </div>
+      <div id="admin-auth-error" class="error-msg hidden"></div>
+      <button id="btn-admin-login" class="btn-primary">ログイン</button>
+      <button id="btn-back-from-admin-auth" class="btn-ghost">← 戻る</button>
+    </div>
+  </div>
+
+  <!-- Admin Main Screen -->
+  <div id="screen-admin" class="screen" style="overflow-y:auto;">
+    <header class="app-header admin-header" style="flex-shrink:0;">
+      <div class="header-left">
+        <div class="logo-small">⚙</div>
+        <h2>管理者画面</h2>
+      </div>
+      <div class="header-right">
+        <button id="btn-to-monitor" class="btn-ghost-sm">廊下モニター表示</button>
+        <button id="btn-admin-logout" class="btn-ghost-sm">ログアウト</button>
+      </div>
+    </header>
+
+    <div class="main-nav" style="flex-shrink:0;">
+      <button class="nav-btn active" data-admin-tab="rooms">レッスン室管理</button>
+      <button class="nav-btn" data-admin-tab="weekly">週間予約</button>
+      <button class="nav-btn" data-admin-tab="reservations">予約管理</button>
+      <button class="nav-btn" data-admin-tab="students">生徒管理</button>
+      <button class="nav-btn" data-admin-tab="instruments">楽器管理</button>
+      <button class="nav-btn" data-admin-tab="settings">設定</button>
+    </div>
+
+    <!-- Rooms Tab -->
+    <div id="admin-tab-rooms" class="tab-content active">
+      <div class="tab-inner">
+        <div class="admin-section-header">
+          <h3>レッスン室一覧</h3>
+          <button id="btn-add-room" class="btn-primary-sm">＋ 追加</button>
+        </div>
+        <div id="admin-rooms-list" class="admin-list"></div>
+      </div>
+    </div>
+
+    <!-- Weekly Tab (Admin) -->
+    <div id="admin-tab-weekly" class="tab-content">
+      <div class="tab-inner">
+        <div class="admin-section-header">
+          <h3>週間予約</h3>
+          <button id="btn-admin-print" class="btn-secondary-sm" onclick="handleAdminPrint()">🖨️ 印刷</button>
+        </div>
+        <div class="admin-filter-row">
+          <select id="admin-weekly-room-select">
+            <option value="">レッスン室を選択してください</option>
+          </select>
+        </div>
+        <div class="week-nav">
+          <button id="admin-prev-week" class="week-btn">&#8249;</button>
+          <span id="admin-week-label" class="week-label"></span>
+          <button id="admin-next-week" class="week-btn">&#8250;</button>
+        </div>
+        <div id="admin-weekly-print-area">
+          <div class="calendar-wrapper" style="overflow-x:auto;">
+            <div id="admin-weekly-calendar" class="weekly-calendar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reservations Tab -->
+    <div id="admin-tab-reservations" class="tab-content">
+      <div class="tab-inner">
+        <div class="admin-section-header">
+          <h3>予約管理</h3>
+          <div style="display:flex;gap:8px;">
+            <button id="btn-add-recurring-admin" class="btn-secondary-sm">🔁 毎週定期予約</button>
+            <button id="btn-add-reservation-admin" class="btn-primary-sm">＋ 予約追加</button>
+          </div>
+        </div>
+        <div class="admin-filter-row">
+          <input type="date" id="admin-filter-date">
+          <select id="admin-filter-room">
+            <option value="">全てのレッスン室</option>
+          </select>
+          <button id="btn-admin-filter" class="btn-secondary-sm">絞り込み</button>
+        </div>
+        <div id="admin-reservations-list" class="admin-list"></div>
+      </div>
+    </div>
+
+    <!-- Students Tab -->
+    <div id="admin-tab-students" class="tab-content">
+      <div class="tab-inner">
+        <div class="admin-section-header">
+          <h3>生徒一覧</h3>
+          <button id="btn-add-student-admin" class="btn-primary-sm">＋ 生徒追加</button>
+        </div>
+        <div id="admin-students-list" class="admin-list"></div>
+      </div>
+    </div>
+
+    <!-- Instruments Tab -->
+    <div id="admin-tab-instruments" class="tab-content">
+      <div class="tab-inner">
+        <div class="admin-section-header">
+          <h3>楽器管理</h3>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">ここで追加・削除した楽器は、新規登録画面と予約時の生徒絞り込みに反映されます。</p>
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+          <input type="text" id="new-instrument-name" placeholder="例：ピアノ、打楽器" style="flex:1;">
+          <button id="btn-add-instrument" class="btn-primary-sm" style="white-space:nowrap;">＋ 追加</button>
+        </div>
+        <div id="admin-instruments-list" class="admin-list"></div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="admin-tab-settings" class="tab-content">
+      <div class="tab-inner">
+        <h3>設定</h3>
+        <div class="settings-section">
+          <h4>パスワード変更</h4>
+          <div class="form-group">
+            <label>現在のパスワード</label>
+            <input type="password" id="current-pw">
+          </div>
+          <div class="form-group">
+            <label>新しいパスワード</label>
+            <input type="password" id="new-pw">
+          </div>
+          <div class="form-group">
+            <label>新しいパスワード（確認）</label>
+            <input type="password" id="new-pw-confirm">
+          </div>
+          <div id="pw-change-msg" class="hidden"></div>
+          <button id="btn-change-pw" class="btn-primary">パスワードを変更</button>
+        </div>
+        <div class="settings-section">
+          <h4>学校情報</h4>
+          <div class="form-group">
+            <label>学校名</label>
+            <input type="text" id="school-name-input" placeholder="学校名">
+          </div>
+          <div class="form-group">
+            <label>学校コード（生徒がログイン時に入力するコード）</label>
+            <input type="text" id="school-code-setting" placeholder="例：MUSIC2024" maxlength="20">
+          </div>
+          <button id="btn-save-school-name" class="btn-secondary">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Modal -->
+<div id="modal-booking" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:460px;max-height:90vh;overflow-y:auto;">
+    <h3 id="modal-booking-title">予約する</h3>
+    <p id="modal-booking-info" class="modal-info"></p>
+    <div class="form-group">
+      <label>楽器名</label>
+      <select id="modal-instrument">
+        <option value="">楽器を選択してください</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>先生の名前</label>
+      <input type="text" id="modal-teacher" placeholder="例：江島先生">
+    </div>
+    <div class="form-group">
+      <label>開始時刻</label>
+      <select id="modal-start-time">
+        <!-- JSで生成 -->
+      </select>
+    </div>
+    <div class="form-group">
+      <label>終了時刻</label>
+      <select id="modal-end-time">
+        <!-- JSで生成 -->
+      </select>
+    </div>
+    <div class="form-group">
+      <label>受講する生徒（複数選択可）</label>
+      <div style="margin-bottom:6px;">
+        <select id="modal-instrument-filter" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;background:#fafbfc;">
+          <option value="">🎵 楽器で絞り込む（全員表示）</option>
+        </select>
+      </div>
+      <div id="modal-student-list" style="border:1.5px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;background:#fafbfc;">
+        <div style="padding:12px;color:var(--text-muted);font-size:13px;">読み込み中...</div>
+      </div>
+      <div id="modal-selected-students" style="margin-top:6px;font-size:13px;color:var(--primary);font-weight:600;min-height:18px;"></div>
+    </div>
+    <div id="modal-booking-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-modal-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-modal-confirm" class="btn-primary">予約する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cell Detail Modal -->
+<div id="modal-cell-detail" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:400px;">
+    <h3 id="modal-detail-title">予約詳細</h3>
+    <div id="modal-detail-content" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div class="modal-actions" style="margin-top:8px;">
+      <button id="btn-detail-close" class="btn-ghost" style="border:1.5px solid var(--border);">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Room Modal -->
+<div id="modal-add-room" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box">
+    <h3>レッスン室を追加</h3>
+    <div class="form-group">
+      <label>レッスン室名</label>
+      <input type="text" id="new-room-name" placeholder="例：101号室">
+    </div>
+    <div class="form-group">
+      <label>説明（任意）</label>
+      <input type="text" id="new-room-desc" placeholder="例：グランドピアノあり">
+    </div>
+    <div id="add-room-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-add-room-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-add-room-confirm" class="btn-primary">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Room Modal -->
+<div id="modal-edit-room" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box">
+    <h3>レッスン室を編集</h3>
+    <div class="form-group">
+      <label>レッスン室名</label>
+      <input type="text" id="edit-room-name" placeholder="例：第1レッスン室">
+    </div>
+    <div class="form-group">
+      <label>説明（任意）</label>
+      <input type="text" id="edit-room-desc" placeholder="例：ピアノあり">
+    </div>
+    <div id="edit-room-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-edit-room-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-edit-room-confirm" class="btn-primary">更新する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div id="modal-edit-student" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-height:92vh;overflow-y:auto;">
+    <h3>生徒情報を編集</h3>
+    <div class="form-group">
+      <label>学年</label>
+      <select id="edit-student-grade">
+        <option value="">選択してください</option>
+        <option value="1">1年生</option>
+        <option value="2">2年生</option>
+        <option value="3">3年生</option>
+        <option value="他科">他科</option>
+      </select>
+    </div>
+    <div id="edit-student-dept-group" class="form-group hidden">
+      <label>学科・学年メモ（任意）</label>
+      <input type="text" id="edit-student-dept" placeholder="例：普通科2年">
+    </div>
+    <div class="form-group">
+      <label>出席番号</label>
+      <input type="number" id="edit-student-number" min="1" max="999">
+    </div>
+    <div class="form-group">
+      <label>名前</label>
+      <input type="text" id="edit-student-name">
+    </div>
+    <div class="form-group">
+      <label>担当楽器</label>
+      <select id="edit-student-instrument"></select>
+    </div>
+    <div id="edit-student-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-edit-student-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-edit-student-confirm" class="btn-primary">更新する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Add Reservation Modal -->
+<div id="modal-admin-reservation" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:460px;max-height:90vh;overflow-y:auto;">
+    <h3>予約を追加（管理者）</h3>
+    <div class="form-group">
+      <label>レッスン室</label>
+      <select id="admin-res-room"></select>
+    </div>
+    <div class="form-group">
+      <label>日付</label>
+      <input type="date" id="admin-res-date">
+    </div>
+    <div class="form-group">
+      <label>開始時刻</label>
+      <select id="admin-res-start">
+        <!-- JSで生成 -->
+      </select>
+    </div>
+    <div class="form-group">
+      <label>終了時刻</label>
+      <select id="admin-res-end">
+        <!-- JSで生成 -->
+      </select>
+    </div>
+    <div class="form-group">
+      <label>楽器名</label>
+      <select id="admin-res-instrument">
+        <option value="">楽器を選択（任意）</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>先生の名前</label>
+      <input type="text" id="admin-res-teacher" placeholder="例：江島先生（任意）">
+    </div>
+    <div class="form-group">
+      <label>生徒名（任意）</label>
+      <input type="text" id="admin-res-student" placeholder="管理者予約">
+    </div>
+    <div id="admin-res-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-admin-res-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-admin-res-confirm" class="btn-primary">予約する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Add Student Modal -->
+<div id="modal-add-student" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box">
+    <h3>生徒を追加</h3>
+    <div class="form-group">
+      <label>学年</label>
+      <select id="admin-student-grade">
+        <option value="">選択してください</option>
+        <option value="1">1年生</option>
+        <option value="2">2年生</option>
+        <option value="3">3年生</option>
+        <option value="他科">他科</option>
+      </select>
+    </div>
+    <div id="admin-student-dept-group" class="form-group hidden">
+      <label>学科・学年メモ（任意）</label>
+      <input type="text" id="admin-student-dept" placeholder="例：普通科2年">
+    </div>
+    <div class="form-group">
+      <label>出席番号</label>
+      <input type="number" id="admin-student-number" placeholder="例：15" min="1" max="50">
+    </div>
+    <div class="form-group">
+      <label>名前</label>
+      <input type="text" id="admin-student-name" placeholder="例：山田 太郎">
+    </div>
+    <div class="form-group">
+      <label>担当楽器</label>
+      <select id="admin-student-instrument">
+        <option value="">読み込み中...</option>
+      </select>
+    </div>
+    <div id="add-student-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-add-student-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-add-student-confirm" class="btn-primary">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Booking Modal (生徒用) -->
+<div id="modal-edit-booking" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:460px;max-height:92vh;overflow-y:auto;">
+    <h3>予約を編集</h3>
+    <div id="modal-edit-booking-info" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label>開始時刻</label>
+      <select id="edit-start-time"></select>
+    </div>
+    <div class="form-group">
+      <label>終了時刻</label>
+      <select id="edit-end-time"></select>
+    </div>
+    <div class="form-group">
+      <label>楽器名</label>
+      <select id="edit-instrument">
+        <option value="">楽器を選択してください</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>先生の名前</label>
+      <input type="text" id="edit-teacher" placeholder="例：江島先生（任意）">
+    </div>
+    <div class="form-group">
+      <label>受講生徒</label>
+      <div id="edit-selected-students-label" style="font-size:13px;color:var(--primary);padding:6px 0;font-weight:600;"></div>
+      <div style="margin-bottom:6px;">
+        <select id="edit-instrument-filter" style="width:100%;font-size:13px;">
+          <option value="">全楽器を表示</option>
+        </select>
+      </div>
+      <div id="edit-student-list" style="max-height:180px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;"></div>
+    </div>
+    <div id="edit-booking-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-edit-booking-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-edit-booking-confirm" class="btn-primary">更新する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Admin Reservation Modal -->
+<div id="modal-edit-admin-reservation" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:460px;max-height:92vh;overflow-y:auto;">
+    <h3>予約を編集（管理者）</h3>
+    <div class="form-group">
+      <label>レッスン室</label>
+      <select id="edit-admin-res-room"></select>
+    </div>
+    <div class="form-group">
+      <label>日付</label>
+      <input type="date" id="edit-admin-res-date">
+    </div>
+    <div class="form-group">
+      <label>開始時刻</label>
+      <select id="edit-admin-res-start"></select>
+    </div>
+    <div class="form-group">
+      <label>終了時刻</label>
+      <select id="edit-admin-res-end"></select>
+    </div>
+    <div class="form-group">
+      <label>楽器名</label>
+      <select id="edit-admin-res-instrument">
+        <option value="">楽器を選択（任意）</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>先生の名前</label>
+      <input type="text" id="edit-admin-res-teacher" placeholder="例：江島先生（任意）">
+    </div>
+    <div class="form-group">
+      <label>生徒名</label>
+      <input type="text" id="edit-admin-res-student" placeholder="管理者予約">
+    </div>
+    <div id="edit-admin-res-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-edit-admin-res-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-edit-admin-res-confirm" class="btn-primary">更新する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instrument Edit Modal -->
+<div id="modal-edit-instrument" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box">
+    <h3>楽器名を編集</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:-6px;margin-bottom:14px;">変更すると、生徒・予約・全データの楽器名が自動で更新されます。</p>
+    <div class="form-group">
+      <label>現在の楽器名</label>
+      <input type="text" id="edit-instrument-old-name" disabled style="background:#f5f5f5;color:var(--text-secondary);">
+    </div>
+    <div class="form-group">
+      <label>新しい楽器名</label>
+      <input type="text" id="edit-instrument-new-name" placeholder="新しい名前を入力">
+    </div>
+    <div id="edit-instrument-progress" style="font-size:13px;color:var(--primary);display:none;padding:8px 0;"></div>
+    <div id="edit-instrument-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-edit-instrument-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-edit-instrument-confirm" class="btn-primary">更新する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Register Auth Modal -->
+<div id="modal-register-auth" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box">
+    <h3>新規登録（管理者認証）</h3>
+    <p class="modal-info">新規登録には管理者パスワードが必要です。</p>
+    <div class="form-group">
+      <label>管理者パスワード</label>
+      <input type="password" id="register-auth-pw" placeholder="パスワードを入力">
+    </div>
+    <div id="register-auth-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-register-auth-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-register-auth-confirm" class="btn-primary">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recurring Reservation Modal -->
+<div id="modal-recurring-reservation" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-box" style="max-width:480px;max-height:92vh;overflow-y:auto;">
+    <h3>🔁 毎週定期予約</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:-6px;">指定した曜日・時間帯で、期間中の毎週同じ枠を一括予約します。</p>
+
+    <div class="form-group">
+      <label>レッスン室</label>
+      <select id="rec-room"></select>
+    </div>
+    <div class="form-group">
+      <label>曜日</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="rec-days">
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="0" style="width:auto;"> 日
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="1" style="width:auto;"> 月
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="2" style="width:auto;"> 火
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="3" style="width:auto;"> 水
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="4" style="width:auto;"> 木
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="5" style="width:auto;"> 金
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;user-select:none;">
+          <input type="checkbox" value="6" style="width:auto;"> 土
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label>開始時刻</label>
+        <select id="rec-start"></select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>終了時刻</label>
+        <select id="rec-end"></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1;">
+        <label>開始日</label>
+        <input type="date" id="rec-from">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>終了日</label>
+        <input type="date" id="rec-to">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>楽器名</label>
+      <select id="rec-instrument">
+        <option value="">楽器を選択（任意）</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>先生の名前</label>
+      <input type="text" id="rec-teacher" placeholder="例：江島先生（任意）">
+    </div>
+    <div class="form-group">
+      <label>生徒名（任意）</label>
+      <input type="text" id="rec-student" placeholder="管理者予約">
+    </div>
+    <div id="rec-preview" style="font-size:13px;color:var(--primary);background:var(--primary-light);padding:10px 12px;border-radius:6px;display:none;"></div>
+    <div id="rec-error" class="error-msg hidden"></div>
+    <div class="modal-actions">
+      <button id="btn-rec-cancel" class="btn-ghost">キャンセル</button>
+      <button id="btn-rec-preview" class="btn-secondary" style="flex:1;">確認する</button>
+      <button id="btn-rec-confirm" class="btn-primary" style="display:none;flex:2;">一括予約する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Monitor Screen -->
+<div id="screen-monitor" class="screen" style="background:#f0f4ff;color:#1a2240;min-height:100vh;display:none;flex-direction:column;">
+  <header style="display:flex;justify-content:space-between;align-items:center;padding:14px 28px;background:#1a3a6b;color:white;box-shadow:0 3px 12px rgba(0,0,0,0.2);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <span style="font-size:32px;">♪</span>
+      <div>
+        <div id="mon-school-name" style="font-size:22px;font-weight:800;letter-spacing:.05em;">音楽科 レッスン室</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:2px;">本日のレッスンスケジュール</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;" id="mon-clock">--:--:--</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.8);" id="mon-date"></div>
+    </div>
+  </header>
+  <main style="flex:1;overflow-y:auto;padding:20px 24px 30px;">
+    <div id="mon-rooms-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+      <div style="grid-column:1/-1;text-align:center;padding:60px;color:#6b7280;">読み込み中...</div>
+    </div>
+  </main>
+  <div style="display:flex;gap:24px;align-items:center;padding:10px 28px;background:white;border-top:2px solid #e0e7ff;box-shadow:0 -2px 8px rgba(0,0,0,0.06);">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:12px;height:12px;border-radius:50%;background:#22c55e;"></div>
+      <span style="font-size:14px;color:#6b7280;">空き <strong id="mon-stat-free" style="color:#1a2240;font-size:16px;">-</strong> 室</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;"></div>
+      <span style="font-size:14px;color:#6b7280;">使用中 <strong id="mon-stat-busy" style="color:#1a2240;font-size:16px;">-</strong> 室</span>
+    </div>
+    <span style="font-size:14px;color:#6b7280;">合計 <strong id="mon-stat-total" style="color:#1a2240;font-size:16px;">-</strong> 室</span>
+    <span style="margin-left:auto;font-size:12px;color:#9ca3af;" id="mon-refresh-info">リアルタイム更新中</span>
+  </div>
+</div>
+
+<script>
+// ===== Firebase設定 =====
+const firebaseConfig = {
+  apiKey: "AIzaSyC9mYSpJ_8SWShwufiyLP2l2GfSmsVNLJQ",
+  authDomain: "lessonroom-6e15b.firebaseapp.com",
+  projectId: "lessonroom-6e15b",
+  storageBucket: "lessonroom-6e15b.firebasestorage.app",
+  messagingSenderId: "620729917779",
+  appId: "1:620729917779:web:feb7029330f9b6b5e241a6"
+};
+
+// 学校コード（先生・生徒だけが知るコードに変更してください）
+const SCHOOL_CODE = "MUSIC2024";
+
+// Firebase初期化
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
+
+<script>
+// ===== メインアプリ =====
+// ====================================================
+// レッスン室予約システム - メインアプリ
+// ====================================================
+
+// ===== 定数 =====
+const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
+// 8:00〜24:00 の 30分刻みスロット
+const TIME_SLOTS = [];
+for (let h = 8; h < 24; h++) {
+  TIME_SLOTS.push(`${String(h).padStart(2,'0')}:00`);
+  TIME_SLOTS.push(`${String(h).padStart(2,'0')}:30`);
+}
+// 表示用スロットラベル（1時間ごとに表示）
+function slotLabel(slot) { return slot; }
+// 互換用（古いperiodベースのデータ変換）
+const LEGACY_PERIOD_TIMES = {
+  1: {s:'08:45',e:'09:35'}, 2: {s:'09:45',e:'10:35'}, 3: {s:'10:45',e:'11:35'},
+  4: {s:'12:30',e:'13:20'}, 5: {s:'13:30',e:'14:20'}, 6: {s:'14:30',e:'15:20'}
+};
+
+// ===== アプリ状態 =====
+let currentUser = null;
+let currentWeekOffset = 0;
+let selectedRoomId = null;
+let bookingTarget = null;
+let allRooms = [];
+let adminAuthenticated = false;
+
+// ===== Firestore参照 =====
+const settingsRef = () => db.collection('settings').doc('config');
+const studentsRef = () => db.collection('students');
+const roomsRef = () => db.collection('rooms');
+const reservationsRef = () => db.collection('reservations');
+
+// ===== ユーティリティ =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showLoading() {
+  if (document.getElementById('loading-overlay')) return;
+  const el = document.createElement('div');
+  el.id = 'loading-overlay';
+  el.className = 'loading-overlay';
+  el.innerHTML = '<div class="spinner"></div>読み込み中...';
+  document.body.appendChild(el);
+}
+
+function hideLoading() {
+  const el = document.getElementById('loading-overlay');
+  if (el) el.remove();
+}
+
+function showError(elId, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideError(elId) {
+  document.getElementById(elId).classList.add('hidden');
+}
+
+function formatDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function getWeekDates(offset = 0) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayOfWeek = today.getDay();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    return d;
+  });
+}
+
+function getTodayStr() {
+  return formatDate(new Date());
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+// ===== 初期化 =====
+document.addEventListener('DOMContentLoaded', async () => {
+  // 30分刻みtime selectの初期化
+  function buildTimeOptions(selId, defaultVal) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let h = 8; h <= 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === 24 && m > 0) break;
+        const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        if (val === defaultVal) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+  }
+  buildTimeOptions('modal-start-time', '09:00');
+  buildTimeOptions('modal-end-time', '10:00');
+  buildTimeOptions('admin-res-start', '09:00');
+  buildTimeOptions('admin-res-end', '10:00');
+
+  // ローカルストレージからセッション復元
+  const saved = localStorage.getItem('currentUser');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      bindEvents();
+      await initMainScreen();
+      return;
+    } catch(e) {
+      localStorage.removeItem('currentUser');
+    }
+  }
+  showScreen('screen-code');
+  bindEvents();
+});
+
+function bindEvents() {
+  // null安全なヘルパー
+  function on(id, event, fn) {
+    const el = document.getElementById(id);
+    if (el) el[event] = fn;
+  }
+  function onQ(selector, event, fn) {
+    const el = document.querySelector(selector);
+    if (el) el[event] = fn;
+  }
+
+  // 学校コード
+  on('btn-code-submit', 'onclick', handleSchoolCode);
+  on('school-code-input', 'onkeypress', e => { if(e.key==='Enter') handleSchoolCode(); });
+
+  // 管理者へ
+  on('btn-to-admin', 'onclick', async () => {
+    const codeInput = document.getElementById('school-code-input').value.trim();
+    if (!codeInput) { showError('code-error', '先に学校コードを入力してください'); return; }
+    showLoading();
+    try {
+      const snap = await settingsRef().get();
+      const validCode = snap.exists && snap.data().schoolCode ? snap.data().schoolCode : SCHOOL_CODE;
+      if (codeInput !== validCode) { showError('code-error', '学校コードが正しくありません'); hideLoading(); return; }
+      hideLoading();
+      showScreen('screen-admin-auth');
+    } catch(e) {
+      showError('code-error', '接続エラーが発生しました');
+      hideLoading();
+    }
+  });
+
+  // 認証選択
+  on('btn-go-login', 'onclick', () => showScreen('screen-login'));
+  on('btn-go-register', 'onclick', () => {
+    const el = document.getElementById('register-auth-pw');
+    if (el) el.value = '';
+    hideError('register-auth-error');
+    openModal('modal-register-auth');
+  });
+  on('btn-back-to-code', 'onclick', () => showScreen('screen-code'));
+
+  // 新規登録認証モーダル
+  on('btn-register-auth-cancel', 'onclick', () => closeModal('modal-register-auth'));
+  onQ('#modal-register-auth .modal-overlay', 'onclick', () => closeModal('modal-register-auth'));
+  on('btn-register-auth-confirm', 'onclick', handleRegisterAuth);
+  on('register-auth-pw', 'onkeypress', e => { if(e.key==='Enter') handleRegisterAuth(); });
+
+  // 新規登録
+  on('btn-register', 'onclick', handleRegister);
+  on('btn-back-to-choice', 'onclick', () => showScreen('screen-auth-choice'));
+  on('reg-grade', 'onchange', () => {
+    const gradeVal = document.getElementById('reg-grade').value;
+    const deptGroup = document.getElementById('reg-dept-group');
+    if (deptGroup) deptGroup.classList.toggle('hidden', gradeVal !== '他科');
+  });
+
+  // ログイン
+  on('login-grade', 'onchange', loadStudentsByGrade);
+  on('btn-login', 'onclick', handleLogin);
+  on('btn-back-to-choice-from-login', 'onclick', () => showScreen('screen-auth-choice'));
+
+  // ログアウト
+  on('btn-logout', 'onclick', handleLogout);
+
+  // タブ切り替え（生徒）
+  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.nav-btn[data-tab]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('#screen-main .tab-content').forEach(t => t.classList.remove('active'));
+      const tabId = 'tab-' + btn.dataset.tab;
+      const tabEl = document.getElementById(tabId);
+      if (tabEl) tabEl.classList.add('active');
+      if (btn.dataset.tab === 'my-reservations') loadMyReservations();
+    };
+  });
+
+  // 予約タブ
+  on('booking-room-select', 'onchange', e => {
+    selectedRoomId = e.target.value;
+    if (selectedRoomId) renderWeeklyCalendar();
+  });
+  on('prev-week', 'onclick', () => { currentWeekOffset--; renderWeeklyCalendar(); });
+  on('next-week', 'onclick', () => { currentWeekOffset++; renderWeeklyCalendar(); });
+
+  // 空き室検索
+  on('btn-search', 'onclick', handleSearch);
+  const searchDateEl = document.getElementById('search-date');
+  if (searchDateEl) searchDateEl.value = getTodayStr();
+
+  // 予約モーダル
+  on('btn-modal-cancel', 'onclick', () => closeModal('modal-booking'));
+  onQ('#modal-booking .modal-overlay', 'onclick', () => closeModal('modal-booking'));
+  on('btn-modal-confirm', 'onclick', handleBookingConfirm);
+
+  // 詳細モーダル
+  on('btn-detail-close', 'onclick', () => closeModal('modal-cell-detail'));
+  onQ('#modal-cell-detail .modal-overlay', 'onclick', () => closeModal('modal-cell-detail'));
+
+  // 生徒: 予約編集モーダル
+  on('btn-edit-booking-cancel', 'onclick', () => closeModal('modal-edit-booking'));
+  onQ('#modal-edit-booking .modal-overlay', 'onclick', () => closeModal('modal-edit-booking'));
+  on('btn-edit-booking-confirm', 'onclick', handleEditBookingConfirm);
+
+  // 管理者認証
+  on('btn-admin-login', 'onclick', handleAdminAuth);
+  on('admin-password-input', 'onkeypress', e => { if(e.key==='Enter') handleAdminAuth(); });
+  on('btn-back-from-admin-auth', 'onclick', () => showScreen('screen-code'));
+  on('btn-admin-logout', 'onclick', () => { adminAuthenticated = false; showScreen('screen-code'); });
+
+  // 管理者タブ
+  document.querySelectorAll('.nav-btn[data-admin-tab]').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.nav-btn[data-admin-tab]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('#screen-admin .tab-content').forEach(t => t.classList.remove('active'));
+      const tabEl = document.getElementById('admin-tab-' + btn.dataset.adminTab);
+      if (tabEl) tabEl.classList.add('active');
+      if (btn.dataset.adminTab === 'rooms') loadAdminRooms();
+      if (btn.dataset.adminTab === 'weekly') initAdminWeekly();
+      if (btn.dataset.adminTab === 'reservations') loadAdminReservations();
+      if (btn.dataset.adminTab === 'students') loadAdminStudents();
+      if (btn.dataset.adminTab === 'instruments') loadAdminInstruments();
+      if (btn.dataset.adminTab === 'settings') loadAdminSettings();
+    };
+  });
+
+  // 管理者: レッスン室編集モーダル
+  on('btn-edit-room-cancel', 'onclick', () => closeModal('modal-edit-room'));
+  onQ('#modal-edit-room .modal-overlay', 'onclick', () => closeModal('modal-edit-room'));
+  on('btn-edit-room-confirm', 'onclick', handleEditRoomConfirm);
+
+  // 管理者: 生徒編集モーダル
+  on('btn-edit-student-cancel', 'onclick', () => closeModal('modal-edit-student'));
+  onQ('#modal-edit-student .modal-overlay', 'onclick', () => closeModal('modal-edit-student'));
+  on('btn-edit-student-confirm', 'onclick', handleEditStudentConfirm);
+  on('edit-student-grade', 'onchange', () => {
+    const gradeVal = document.getElementById('edit-student-grade').value;
+    const deptGroup = document.getElementById('edit-student-dept-group');
+    if (deptGroup) deptGroup.classList.toggle('hidden', gradeVal !== '他科');
+  });
+
+  // 管理者: 楽器追加
+  on('btn-add-instrument', 'onclick', handleAddInstrument);
+  on('new-instrument-name', 'onkeypress', e => { if(e.key==='Enter') handleAddInstrument(); });
+
+  // 管理者: 楽器編集モーダル
+  on('btn-edit-instrument-cancel', 'onclick', () => closeModal('modal-edit-instrument'));
+  onQ('#modal-edit-instrument .modal-overlay', 'onclick', () => closeModal('modal-edit-instrument'));
+  on('btn-edit-instrument-confirm', 'onclick', handleEditInstrumentConfirm);
+  on('edit-instrument-new-name', 'onkeypress', e => { if(e.key==='Enter') handleEditInstrumentConfirm(); });
+
+  // 管理者: 生徒追加
+  on('btn-add-student-admin', 'onclick', async () => {
+    const instruments = await fetchInstruments();
+    const instrSel = document.getElementById('admin-student-instrument');
+    if (instrSel) {
+      instrSel.innerHTML = '<option value="">選択してください</option>';
+      instruments.forEach(i => {
+        const o = document.createElement('option');
+        o.value = i.name; o.textContent = i.name;
+        instrSel.appendChild(o);
+      });
+    }
+    const gradeEl = document.getElementById('admin-student-grade');
+    const numberEl = document.getElementById('admin-student-number');
+    const nameEl = document.getElementById('admin-student-name');
+    const deptEl = document.getElementById('admin-student-dept');
+    const deptGroup = document.getElementById('admin-student-dept-group');
+    if (gradeEl) { gradeEl.value = ''; gradeEl.onchange = () => { if(deptGroup) deptGroup.classList.toggle('hidden', gradeEl.value !== '他科'); }; }
+    if (numberEl) numberEl.value = '';
+    if (nameEl) nameEl.value = '';
+    if (deptEl) deptEl.value = '';
+    if (deptGroup) deptGroup.classList.add('hidden');
+    hideError('add-student-error');
+    openModal('modal-add-student');
+  });
+  on('btn-add-student-cancel', 'onclick', () => closeModal('modal-add-student'));
+  onQ('#modal-add-student .modal-overlay', 'onclick', () => closeModal('modal-add-student'));
+  on('btn-add-student-confirm', 'onclick', handleAdminAddStudent);
+
+  // 管理者: レッスン室追加
+  on('btn-add-room', 'onclick', () => openModal('modal-add-room'));
+  on('btn-add-room-cancel', 'onclick', () => closeModal('modal-add-room'));
+  onQ('#modal-add-room .modal-overlay', 'onclick', () => closeModal('modal-add-room'));
+  on('btn-add-room-confirm', 'onclick', handleAddRoom);
+
+  // 管理者: 予約編集モーダル
+  on('btn-edit-admin-res-cancel', 'onclick', () => closeModal('modal-edit-admin-reservation'));
+  onQ('#modal-edit-admin-reservation .modal-overlay', 'onclick', () => closeModal('modal-edit-admin-reservation'));
+  on('btn-edit-admin-res-confirm', 'onclick', handleEditAdminReservationConfirm);
+
+  // 管理者: 毎週定期予約
+  on('btn-add-recurring-admin', 'onclick', openRecurringModal);
+  on('btn-rec-cancel', 'onclick', () => closeModal('modal-recurring-reservation'));
+  onQ('#modal-recurring-reservation .modal-overlay', 'onclick', () => closeModal('modal-recurring-reservation'));
+  on('btn-rec-preview', 'onclick', handleRecurringPreview);
+  on('btn-rec-confirm', 'onclick', handleRecurringConfirm);
+
+  // 管理者: 予約追加
+  on('btn-add-reservation-admin', 'onclick', async () => {
+    await populateAdminRoomSelect();
+    const dateEl = document.getElementById('admin-res-date');
+    const startEl = document.getElementById('admin-res-start');
+    const endEl = document.getElementById('admin-res-end');
+    const studentEl = document.getElementById('admin-res-student');
+    const teacherEl = document.getElementById('admin-res-teacher');
+    if (dateEl) dateEl.value = getTodayStr();
+    if (startEl) startEl.value = '09:00';
+    if (endEl) endEl.value = '10:00';
+    if (studentEl) studentEl.value = '';
+    if (teacherEl) teacherEl.value = '';
+    const instruments = await fetchInstruments();
+    const instrSel = document.getElementById('admin-res-instrument');
+    if (instrSel) {
+      instrSel.innerHTML = '<option value="">楽器を選択（任意）</option>';
+      instruments.forEach(i => {
+        const o = document.createElement('option');
+        o.value = i.name; o.textContent = i.name;
+        instrSel.appendChild(o);
+      });
+    }
+    openModal('modal-admin-reservation');
+  });
+  on('btn-admin-res-cancel', 'onclick', () => closeModal('modal-admin-reservation'));
+  onQ('#modal-admin-reservation .modal-overlay', 'onclick', () => closeModal('modal-admin-reservation'));
+  on('btn-admin-res-confirm', 'onclick', handleAdminAddReservation);
+  on('btn-admin-filter', 'onclick', loadAdminReservations);
+
+  // 設定
+  on('btn-change-pw', 'onclick', handleChangePassword);
+  on('btn-save-school-name', 'onclick', handleSaveSchoolName);
+
+  // 廊下モニター（管理者画面から）
+  const btnToMonitor = document.getElementById('btn-to-monitor');
+  if (btnToMonitor) {
+    btnToMonitor.onclick = () => {
+      document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = ''; });
+      const ms = document.getElementById('screen-monitor');
+      if (ms) { ms.style.display = 'flex'; ms.classList.add('active'); monStart(); }
+    };
+  }
+}
+
+// ===== 学校コード処理 =====
+async function handleSchoolCode() {
+  const code = document.getElementById('school-code-input').value.trim();
+  hideError('code-error');
+  if (!code) { showError('code-error', '学校コードを入力してください'); return; }
+  
+  showLoading();
+  try {
+    const snap = await settingsRef().get();
+    const validCode = snap.exists && snap.data().schoolCode ? snap.data().schoolCode : SCHOOL_CODE;
+    window._dynamicSchoolCode = validCode;
+    if (code !== validCode) {
+      showError('code-error', '学校コードが正しくありません');
+      hideLoading(); return;
+    }
+    const schoolName = snap.exists ? (snap.data().schoolName || '音楽科') : '音楽科';
+    document.getElementById('school-name-display').textContent = schoolName;
+    showScreen('screen-auth-choice');
+  } catch(e) {
+    showError('code-error', '接続エラーが発生しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 新規登録認証 =====
+async function handleRegisterAuth() {
+  const pw = document.getElementById('register-auth-pw').value;
+  hideError('register-auth-error');
+  if (!pw) { showError('register-auth-error', 'パスワードを入力してください'); return; }
+
+  showLoading();
+  try {
+    const snap = await settingsRef().get();
+    const storedPw = snap.exists ? (snap.data().adminPassword || 'admin1234') : 'admin1234';
+    if (pw !== storedPw) {
+      showError('register-auth-error', 'パスワードが正しくありません');
+      hideLoading(); return;
+    }
+    closeModal('modal-register-auth');
+    showScreen('screen-register');
+    await populateInstrumentSelects();
+  } catch(e) {
+    showError('register-auth-error', '認証に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 新規登録 =====
+async function handleRegister() {
+  const grade = document.getElementById('reg-grade').value;
+  const number = document.getElementById('reg-number').value;
+  const name = document.getElementById('reg-name').value.trim();
+  const instrument = document.getElementById('reg-instrument').value;
+  const dept = grade === '他科' ? (document.getElementById('reg-dept')?.value.trim() || '') : '';
+  hideError('reg-error');
+
+  if (!grade) { showError('reg-error', '学年を選択してください'); return; }
+  if (!number) { showError('reg-error', '出席番号を入力してください'); return; }
+  if (!name) { showError('reg-error', '名前を入力してください'); return; }
+  if (!instrument) { showError('reg-error', '担当楽器を選択してください'); return; }
+
+  showLoading();
+  try {
+    // 重複チェック
+    const existing = await studentsRef()
+      .where('grade', '==', grade)
+      .where('number', '==', parseInt(number))
+      .get();
+    if (!existing.empty) {
+      showError('reg-error', 'その学年・出席番号はすでに登録されています');
+      hideLoading(); return;
+    }
+    const saveData = { grade, number: parseInt(number), name, instrument, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    if (dept) saveData.dept = dept;
+    const ref = await studentsRef().add(saveData);
+    currentUser = { id: ref.id, grade, number: parseInt(number), name };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    await initMainScreen();
+  } catch(e) {
+    showError('reg-error', '登録に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== ログイン =====
+async function loadStudentsByGrade() {
+  const grade = document.getElementById('login-grade').value;
+  const nameSelect = document.getElementById('login-name');
+  nameSelect.innerHTML = '<option value="">読み込み中...</option>';
+  nameSelect.disabled = true;
+  if (!grade) { nameSelect.innerHTML = '<option value="">先に学年を選択してください</option>'; return; }
+  
+  try {
+    const snap = await studentsRef().where('grade', '==', grade).get();
+    // 出席番号順にソート
+    const docs = [];
+    snap.forEach(doc => docs.push(doc));
+    docs.sort((a, b) => a.data().number - b.data().number);
+    nameSelect.innerHTML = '<option value="">名前を選択してください</option>';
+    docs.forEach(doc => {
+      const d = doc.data();
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = `${d.number}番 ${d.name}`;
+      nameSelect.appendChild(opt);
+    });
+    nameSelect.disabled = false;
+  } catch(e) {
+    nameSelect.innerHTML = '<option value="">エラーが発生しました</option>';
+  }
+}
+
+async function handleLogin() {
+  const grade = document.getElementById('login-grade').value;
+  const studentId = document.getElementById('login-name').value;
+  hideError('login-error');
+  if (!grade) { showError('login-error', '学年を選択してください'); return; }
+  if (!studentId) { showError('login-error', '名前を選択してください'); return; }
+
+  showLoading();
+  try {
+    const doc = await studentsRef().doc(studentId).get();
+    if (!doc.exists) { showError('login-error', '生徒が見つかりません'); hideLoading(); return; }
+    const d = doc.data();
+    currentUser = { id: doc.id, grade: d.grade, number: d.number, name: d.name };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    await initMainScreen();
+  } catch(e) {
+    showError('login-error', 'ログインに失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+function handleLogout() {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  currentWeekOffset = 0;
+  selectedRoomId = null;
+  showScreen('screen-code');
+  document.getElementById('school-code-input').value = '';
+}
+
+// ===== メイン画面初期化 =====
+async function initMainScreen() {
+  document.getElementById('user-display').textContent = `${currentUser.grade}年 ${currentUser.name}`;
+  showScreen('screen-main');
+  await Promise.all([loadRooms(), populateInstrumentSelects()]);
+  renderWeeklyCalendar();
+}
+
+async function loadRooms() {
+  const snap = await roomsRef().orderBy('createdAt').get();
+  allRooms = [];
+  snap.forEach(doc => allRooms.push({ id: doc.id, ...doc.data() }));
+  
+  const sel = document.getElementById('booking-room-select');
+  sel.innerHTML = '<option value="">レッスン室を選択してください</option>';
+  allRooms.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.name + (r.desc ? ` (${r.desc})` : '');
+    sel.appendChild(opt);
+  });
+  if (selectedRoomId) sel.value = selectedRoomId;
+}
+
+// ===== 週間カレンダー（時刻ベース）=====
+async function renderWeeklyCalendar() {
+  const cal = document.getElementById('weekly-calendar');
+  cal.innerHTML = '';
+  const todayStr = getTodayStr();
+  const weekDates = getWeekDates(currentWeekOffset);
+
+  // 週ラベル
+  const firstDate = weekDates[0];
+  const lastDate = weekDates[6];
+  document.getElementById('week-label').textContent =
+    `${firstDate.getMonth()+1}/${firstDate.getDate()} 〜 ${lastDate.getMonth()+1}/${lastDate.getDate()}`;
+
+  // ヘッダー行
+  const emptyHeader = document.createElement('div');
+  emptyHeader.className = 'cal-header cal-header-empty';
+  cal.appendChild(emptyHeader);
+
+  weekDates.forEach((date, i) => {
+    const header = document.createElement('div');
+    const dateStr = formatDate(date);
+    const isToday = dateStr === todayStr;
+    header.className = 'cal-header' + (isToday ? ' today-header' : '');
+    header.innerHTML = `<div>${DAY_NAMES[i]}</div><div style="font-size:12px;opacity:.85">${date.getMonth()+1}/${date.getDate()}</div>`;
+    cal.appendChild(header);
+  });
+
+  if (!selectedRoomId) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'grid-column: 1 / -1; padding: 32px; text-align: center; color: var(--text-secondary); background: white;';
+    msg.textContent = 'レッスン室を選択してください';
+    cal.appendChild(msg);
+    return;
+  }
+
+  // 予約データ取得
+  const weekStrs = weekDates.map(d => formatDate(d));
+  let reservations = {}; // "dateStr_slotIndex" -> array of bookings
+  try {
+    const snap = await reservationsRef()
+      .where('roomId', '==', selectedRoomId)
+      .where('date', 'in', weekStrs)
+      .get();
+    snap.forEach(doc => {
+      const d = doc.data();
+      let s = d.startTime, e = d.endTime;
+      if (!s && d.startPeriod) {
+        s = LEGACY_PERIOD_TIMES[d.startPeriod]?.s || '08:45';
+        e = LEGACY_PERIOD_TIMES[d.endPeriod]?.e || '15:20';
+      }
+      if (!s) return;
+      const si = timeToSlotIndex(s);
+      const ei = timeToSlotIndex(e);
+      for (let idx = si; idx < ei && idx < TIME_SLOTS.length; idx++) {
+        const key = `${d.date}_${idx}`;
+        if (!reservations[key]) reservations[key] = [];
+        reservations[key].push({
+          id: doc.id,
+          studentNames: d.studentNames || [d.studentName],
+          studentIds: d.studentIds || [d.studentId],
+          instrument: d.instrument || '',
+          teacher: d.teacher || '',
+          startTime: s,
+          endTime: e,
+          date: d.date
+        });
+      }
+    });
+  } catch(e) {}
+
+  const currentSlot = getCurrentSlotIndex();
+
+  // 各スロットの行（30分刻み、8:00〜24:00）
+  TIME_SLOTS.forEach((slot, slotIdx) => {
+    const periodLabel = document.createElement('div');
+    periodLabel.className = 'cal-period-label';
+    // 正時（:00）のみ時刻表示、:30は細く
+    const isHour = slot.endsWith(':00');
+    periodLabel.style.cssText = isHour ? 'font-size:11px;font-weight:700;' : 'font-size:10px;color:var(--text-muted);';
+    periodLabel.innerHTML = `<span>${slot}</span>`;
+    cal.appendChild(periodLabel);
+
+    weekDates.forEach((date, i) => {
+      const dateStr = formatDate(date);
+      const key = `${dateStr}_${slotIdx}`;
+      const bookings = reservations[key] || [];
+      const isPast = dateStr < todayStr || (dateStr === todayStr && slotIdx < currentSlot);
+      const isCurrentSlot = dateStr === todayStr && slotIdx === currentSlot;
+      const cell = document.createElement('div');
+
+      let cellClass = 'cal-cell';
+      if (!isHour) cellClass += ' cal-cell-half';
+      if (date.toDateString() === new Date().toDateString()) cellClass += ' today-col';
+      if (isPast) cellClass += ' past';
+      if (isCurrentSlot) cellClass += ' current-slot';
+
+      const content = document.createElement('div');
+      content.className = 'cell-content';
+
+      if (bookings.length > 0) {
+        const isMine = currentUser && bookings.some(b => b.studentIds && b.studentIds.includes(currentUser.id));
+        const isFull = bookings.length >= 2;
+        if (isMine) cellClass += ' my-booking';
+        else if (isFull) cellClass += ' booked';
+        else cellClass += ' half-booked';
+
+        const cellLines = bookings.map(b => {
+          const parts = [];
+          if (b.teacher) parts.push(b.teacher);
+          if (b.instrument) parts.push(b.instrument);
+          return parts.join(' ');
+        }).filter(Boolean);
+        const displayText = cellLines.join(' / ') || bookings.map(b => (b.studentNames||[]).join('・')).join(' / ');
+        content.innerHTML = `<div class="${isMine ? 'my-label' : 'booker'}" style="font-size:9px;line-height:1.2;word-break:break-all;">${displayText}</div>`;
+
+        if (!isPast) {
+          cell.onclick = () => openCellDetail(bookings, dateStr, i, slot, isFull);
+        } else {
+          cell.onclick = () => openCellDetail(bookings, dateStr, i, slot, true);
+        }
+      } else if (!isPast) {
+        if (isHour) content.innerHTML = `<div class="cell-available-icon">+</div>`;
+        cell.onclick = () => openBookingModal(dateStr, slot, i);
+      }
+
+      cell.className = cellClass;
+      cell.appendChild(content);
+      cal.appendChild(cell);
+    });
+  });
+}
+
+
+function getCurrentPeriod() { return null; } // 互換用
+
+// 現在時刻に対応するスロットインデックスを返す
+function getCurrentSlotIndex() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  if (h < 8) return -1;
+  if (h >= 24) return TIME_SLOTS.length;
+  const totalMins = (h - 8) * 60 + m;
+  return Math.floor(totalMins / 30);
+}
+
+// 時刻文字列 "HH:MM" をスロットインデックスに変換
+function timeToSlotIndex(timeStr) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  if (h < 8) return 0;
+  if (h >= 24) return TIME_SLOTS.length; // 24:00は配列末尾の次（終端）
+  return (h - 8) * 2 + (m >= 30 ? 1 : 0);
+}
+
+// ある予約 (startTime, endTime) がスロットslot（"HH:MM"）に重なるか
+function reservationCoversSlot(res, slot) {
+  let s = res.startTime, e = res.endTime;
+  if (!s && res.startPeriod) {
+    s = LEGACY_PERIOD_TIMES[res.startPeriod]?.s || '08:45';
+    e = LEGACY_PERIOD_TIMES[res.endPeriod]?.e || '15:20';
+  }
+  if (!s) return false;
+  return s <= slot && slot < e;
+}
+
+function openCellDetail(bookings, dateStr, dayIdx, slotOrPeriod, isFull) {
+  const date = new Date(dateStr + 'T00:00:00');
+  const slotLabelStr = typeof slotOrPeriod === 'string' ? slotOrPeriod : `${slotOrPeriod}限`;
+  document.getElementById('modal-detail-title').textContent =
+    `${date.getMonth()+1}/${date.getDate()}(${DAY_NAMES[dayIdx]}) ${slotLabelStr} 予約詳細`;
+  
+  const content = document.getElementById('modal-detail-content');
+  content.innerHTML = '';
+
+  if (bookings.length === 0) {
+    content.innerHTML = '<p style="color:var(--text-secondary)">予約はありません</p>';
+  } else {
+    bookings.forEach((b, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--primary-light);border-radius:8px;padding:12px;';
+      const names = (b.studentNames || []).join('、');
+      const isMine = currentUser && (b.studentIds || []).includes(currentUser.id);
+      card.innerHTML = `
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;">
+          ${isMine ? '🟢' : '🔵'} ${names}
+        </div>
+        ${b.instrument ? `<div style="font-size:13px;color:var(--text-secondary);">🎵 楽器：${b.instrument}</div>` : ''}
+        ${b.teacher ? `<div style="font-size:13px;color:var(--text-secondary);">👨‍🏫 先生：${b.teacher}</div>` : ''}
+        ${b.startTime && b.endTime ? `<div style="font-size:13px;color:var(--text-secondary);">⏰ 時間：${b.startTime} 〜 ${b.endTime}</div>` : ''}
+        ${isMine ? `
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button class="btn-secondary-sm" style="font-size:12px;" onclick="openEditBookingModal('${b.id}')">編集する</button>
+            <button class="btn-danger-sm" style="font-size:12px;" onclick="handleCancelBooking('${b.id}')">キャンセルする</button>
+          </div>` : ''}
+      `;
+      content.appendChild(card);
+    });
+    if (!isFull) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-secondary';
+      addBtn.textContent = '＋ 別グループで予約を追加する';
+      addBtn.style.marginTop = '4px';
+      addBtn.onclick = () => {
+        closeModal('modal-cell-detail');
+        openBookingModal(dateStr, slotOrPeriod, dayIdx);
+      };
+      content.appendChild(addBtn);
+    }
+  }
+
+  openModal('modal-cell-detail');
+}
+
+async function openBookingModal(dateStr, slotOrPeriod, dayIdx) {
+  const room = allRooms.find(r => r.id === selectedRoomId);
+  const date = new Date(dateStr + 'T00:00:00');
+  bookingTarget = { dateStr, period: slotOrPeriod, dayIdx };
+  
+  document.getElementById('modal-booking-title').textContent = `予約する`;
+  document.getElementById('modal-booking-info').textContent =
+    `📍 ${room ? room.name : ''} ／ ${date.getMonth()+1}/${date.getDate()}(${DAY_NAMES[dayIdx]})`;
+  
+  // デフォルト時刻: クリックしたスロットから設定
+  let defStart = '09:00', defEnd = '10:00';
+  if (typeof slotOrPeriod === 'string') {
+    defStart = slotOrPeriod;
+    // 終了は1時間後
+    const [h, m] = slotOrPeriod.split(':').map(Number);
+    const endH = h + 1;
+    defEnd = endH >= 24 ? '24:00' : `${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+  document.getElementById('modal-instrument').value = '';
+  document.getElementById('modal-teacher').value = '';
+  document.getElementById('modal-start-time').value = defStart;
+  document.getElementById('modal-end-time').value = defEnd;
+
+  // 楽器セレクトを更新
+  const instruments = await fetchInstruments();
+  const instrSel = document.getElementById('modal-instrument');
+  instrSel.innerHTML = '<option value="">楽器を選択してください</option>';
+  instruments.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i.name; o.textContent = i.name;
+    instrSel.appendChild(o);
+  });
+  
+  window._selectedStudents = [{ id: currentUser.id, name: currentUser.name }];
+  window._allStudentDocs = null;
+  const filterSel = document.getElementById('modal-instrument-filter');
+  if (filterSel) filterSel.value = '';
+  await loadStudentListForModal();
+  
+  hideError('modal-booking-error');
+  openModal('modal-booking');
+}
+
+// 全生徒データをキャッシュ
+window._allStudentDocs = null;
+
+async function loadStudentListForModal() {
+  const listDiv = document.getElementById('modal-student-list');
+  listDiv.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px;">読み込み中...</div>';
+  
+  try {
+    // キャッシュがなければ取得
+    if (!window._allStudentDocs) {
+      const snap = await studentsRef().get();
+      const docs = [];
+      snap.forEach(doc => docs.push({ id: doc.id, data: doc.data() }));
+      docs.sort((a, b) => {
+        const ag = parseInt(a.data.grade), bg = parseInt(b.data.grade);
+        if (ag !== bg) return ag - bg;
+        return a.data.number - b.data.number;
+      });
+      window._allStudentDocs = docs;
+    }
+
+    // フィルター select にイベントを設定（初回のみ）
+    const filterSel = document.getElementById('modal-instrument-filter');
+    filterSel.onchange = () => renderStudentList(filterSel.value);
+
+    renderStudentList(filterSel.value);
+    updateSelectedStudentsLabel();
+  } catch(e) {
+    listDiv.innerHTML = '<div style="padding:10px;color:var(--danger);font-size:13px;">読み込みに失敗しました</div>';
+  }
+}
+
+function renderStudentList(filterInstrument) {
+  const listDiv = document.getElementById('modal-student-list');
+  listDiv.innerHTML = '';
+
+  const docs = window._allStudentDocs || [];
+  const filtered = filterInstrument
+    ? docs.filter(s => (s.data.instrument || '') === filterInstrument)
+    : docs;
+
+  if (filtered.length === 0) {
+    listDiv.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px;">該当する生徒がいません</div>';
+    return;
+  }
+
+  filtered.forEach(({ id, data: d }) => {
+    const isSelected = window._selectedStudents.some(s => s.id === id);
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+    row.innerHTML = `
+      <input type="checkbox" value="${id}" ${isSelected ? 'checked' : ''}
+        style="width:16px;height:16px;accent-color:var(--primary);">
+      <span style="font-size:14px;flex:1;">${d.grade === '他科' ? '他科' : d.grade+'年'} ${d.number}番 ${d.name}</span>
+      ${d.instrument ? `<span style="font-size:11px;color:var(--text-muted);background:#f0f2f5;padding:2px 7px;border-radius:10px;">${d.instrument}</span>` : ''}
+    `;
+    const cb = row.querySelector('input');
+    cb.onchange = () => {
+      if (cb.checked) {
+        window._selectedStudents.push({ id, name: d.name });
+      } else {
+        window._selectedStudents = window._selectedStudents.filter(s => s.id !== id);
+      }
+      updateSelectedStudentsLabel();
+    };
+    listDiv.appendChild(row);
+  });
+}
+
+function updateSelectedStudentsLabel() {
+  const el = document.getElementById('modal-selected-students');
+  if (window._selectedStudents.length === 0) {
+    el.textContent = '生徒を選択してください';
+  } else {
+    el.textContent = '選択中: ' + window._selectedStudents.map(s => s.name).join('、');
+  }
+}
+
+async function handleBookingConfirm() {
+  if (!bookingTarget) return;
+  const instrument = document.getElementById('modal-instrument').value.trim();
+  const teacher = document.getElementById('modal-teacher').value.trim();
+  const startTime = document.getElementById('modal-start-time').value;
+  const endTime = document.getElementById('modal-end-time').value;
+  const selectedStudents = window._selectedStudents || [];
+  hideError('modal-booking-error');
+  
+  if (selectedStudents.length === 0) {
+    showError('modal-booking-error', '生徒を1名以上選択してください');
+    return;
+  }
+  if (!startTime || !endTime) {
+    showError('modal-booking-error', '開始・終了時刻を入力してください');
+    return;
+  }
+  if (startTime >= endTime) {
+    showError('modal-booking-error', '終了時刻は開始時刻より後にしてください');
+    return;
+  }
+
+  showLoading();
+  try {
+    // 重複チェック（既存予約と時刻が重なる場合は2件まで）
+    const snap = await reservationsRef()
+      .where('roomId', '==', selectedRoomId)
+      .where('date', '==', bookingTarget.dateStr)
+      .get();
+    
+    let countOverlap = 0;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      let ds = d.startTime, de = d.endTime;
+      if (!ds && d.startPeriod) {
+        ds = LEGACY_PERIOD_TIMES[d.startPeriod]?.s || '08:45';
+        de = LEGACY_PERIOD_TIMES[d.endPeriod]?.e || '15:20';
+      }
+      if (!ds) continue;
+      // 時刻が重なるか
+      if (!(endTime <= ds || startTime >= de)) {
+        countOverlap++;
+      }
+    }
+    if (countOverlap >= 2) {
+      showError('modal-booking-error', 'この時間帯はすでに2グループ予約が入っています');
+      hideLoading(); return;
+    }
+
+    await reservationsRef().add({
+      roomId: selectedRoomId,
+      roomName: allRooms.find(r => r.id === selectedRoomId)?.name || '',
+      date: bookingTarget.dateStr,
+      startPeriod: 1, endPeriod: 1, // 互換用ダミー
+      instrument, teacher,
+      startTime, endTime,
+      studentIds: selectedStudents.map(s => s.id),
+      studentNames: selectedStudents.map(s => s.name),
+      studentId: selectedStudents[0].id,
+      studentName: selectedStudents.map(s => s.name).join('・'),
+      studentGrade: currentUser.grade,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('modal-booking');
+    renderWeeklyCalendar();
+  } catch(e) {
+    showError('modal-booking-error', '予約に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function handleCancelBooking(reservationId) {
+  if (!confirm('この予約をキャンセルしますか？')) return;
+  closeModal('modal-cell-detail');
+  showLoading();
+  try {
+    await reservationsRef().doc(reservationId).delete();
+    renderWeeklyCalendar();
+  } catch(e) {
+    alert('キャンセルに失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 空き室検索 =====
+async function handleSearch() {
+  const dateStr = document.getElementById('search-date').value;
+  if (!dateStr) { alert('日付を選択してください'); return; }
+  
+  const resultsDiv = document.getElementById('search-results');
+  resultsDiv.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 12px"></div></div>';
+  
+  showLoading();
+  try {
+    const snap = await reservationsRef().where('date', '==', dateStr).get();
+
+    // roomId -> 予約一覧
+    const bookedByRoom = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (!bookedByRoom[d.roomId]) bookedByRoom[d.roomId] = [];
+      bookedByRoom[d.roomId].push(d);
+    });
+
+    if (allRooms.length === 0) await loadRooms();
+    
+    if (allRooms.length === 0) {
+      resultsDiv.innerHTML = '<div class="no-results">レッスン室が登録されていません</div>';
+      return;
+    }
+
+    resultsDiv.innerHTML = '';
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayName = DAY_NAMES[date.getDay()];
+    
+    allRooms.forEach(room => {
+      const bookings = bookedByRoom[room.id] || [];
+      const card = document.createElement('div');
+      card.className = 'search-result-card';
+      
+      if (bookings.length === 0) {
+        card.innerHTML = `
+          <h4>🎵 ${room.name}${room.desc ? ` <span style="font-size:12px;color:var(--text-secondary);font-weight:400">${room.desc}</span>` : ''}</h4>
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${date.getMonth()+1}/${date.getDate()}(${dayName})</div>
+          <div class="period-pills"><span class="period-pill free">終日空き ○</span></div>
+        `;
+      } else {
+        const slotRows = bookings.map(b => {
+          let s = b.startTime, e = b.endTime;
+          if (!s && b.startPeriod) {
+            s = LEGACY_PERIOD_TIMES[b.startPeriod]?.s || '--:--';
+            e = LEGACY_PERIOD_TIMES[b.endPeriod]?.e || '--:--';
+          }
+          const names = (b.studentNames || [b.studentName]).join('・');
+          return `<span class="period-pill busy">${s}〜${e} × ${b.teacher ? b.teacher : names || ''}</span>`;
+        }).join('');
+        card.innerHTML = `
+          <h4>🎵 ${room.name}${room.desc ? ` <span style="font-size:12px;color:var(--text-secondary);font-weight:400">${room.desc}</span>` : ''}</h4>
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${date.getMonth()+1}/${date.getDate()}(${dayName}) ／ 予約件数: ${bookings.length}</div>
+          <div class="period-pills">${slotRows}</div>
+        `;
+      }
+      resultsDiv.appendChild(card);
+    });
+  } catch(e) {
+    resultsDiv.innerHTML = '<div class="no-results">検索に失敗しました: ' + e.message + '</div>';
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 自分の予約 =====
+async function loadMyReservations() {
+  const listDiv = document.getElementById('my-reservations-list');
+  listDiv.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 12px"></div></div>';
+  
+  try {
+    const today = getTodayStr();
+    // orderByを使わずdate>=todayだけでフィルタ（インデックス不要）
+    const snap = await reservationsRef()
+      .where('date', '>=', today)
+      .get();
+
+    const myDocs = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const ids = d.studentIds || (d.studentId ? [d.studentId] : []);
+      if (ids.includes(currentUser.id)) {
+        myDocs.push(doc);
+      }
+    });
+
+    // クライアント側でソート（日付→開始時刻）
+    myDocs.sort((a, b) => {
+      const ad = a.data(), bd = b.data();
+      if (ad.date !== bd.date) return ad.date.localeCompare(bd.date);
+      const as = ad.startTime || '99:99', bs = bd.startTime || '99:99';
+      return as.localeCompare(bs);
+    });
+
+    if (myDocs.length === 0) {
+      listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>予約がありません</p></div>';
+      return;
+    }
+
+    listDiv.innerHTML = '';
+    myDocs.forEach(doc => {
+      const d = doc.data();
+      const date = new Date(d.date + 'T00:00:00');
+      const names = (d.studentNames || [d.studentName]).join('、');
+      const card = document.createElement('div');
+      card.className = 'reservation-card';
+      card.innerHTML = `
+        <div class="reservation-info">
+          <div class="reservation-title">🎵 ${d.roomName}</div>
+          <div class="reservation-detail">${date.getMonth()+1}/${date.getDate()}(${DAY_NAMES[date.getDay()]}) ／ ${d.startTime ? `${d.startTime}〜${d.endTime}` : (d.startPeriod ? `${d.startPeriod}限` : '')}</div>
+          ${d.instrument ? `<div class="reservation-detail">楽器：${d.instrument}${d.teacher ? '　先生：'+d.teacher : ''}</div>` : (d.teacher ? `<div class="reservation-detail">先生：${d.teacher}</div>` : '')}
+          <div class="reservation-detail" style="color:var(--primary)">受講：${names}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn-secondary-sm edit-btn" data-id="${doc.id}">編集</button>
+          <button class="btn-danger-sm cancel-btn" data-id="${doc.id}">キャンセル</button>
+        </div>
+      `;
+      card.querySelector('.edit-btn').onclick = () => openEditBookingModal(doc.id);
+      card.querySelector('.cancel-btn').onclick = async () => {
+        if (confirm('この予約をキャンセルしますか？')) {
+          showLoading();
+          try {
+            await reservationsRef().doc(doc.id).delete();
+            loadMyReservations();
+            if (selectedRoomId === d.roomId) renderWeeklyCalendar();
+          } catch(e) {
+            alert('キャンセルに失敗しました');
+          } finally { hideLoading(); }
+        }
+      };
+      listDiv.appendChild(card);
+    });
+  } catch(e) {
+    console.error('loadMyReservations error:', e);
+    listDiv.innerHTML = '<div class="empty-state"><p>読み込みに失敗しました: ' + e.message + '</p></div>';
+  }
+}
+
+// ===== 管理者認証 =====
+async function handleAdminAuth() {
+  const pw = document.getElementById('admin-password-input').value;
+  hideError('admin-auth-error');
+  if (!pw) { showError('admin-auth-error', 'パスワードを入力してください'); return; }
+  
+  showLoading();
+  try {
+    const snap = await settingsRef().get();
+    const storedPw = snap.exists ? (snap.data().adminPassword || 'admin1234') : 'admin1234';
+    if (pw !== storedPw) {
+      showError('admin-auth-error', 'パスワードが正しくありません');
+      hideLoading(); return;
+    }
+    adminAuthenticated = true;
+    document.getElementById('admin-password-input').value = '';
+    showScreen('screen-admin');
+    await loadAdminRooms();
+  } catch(e) {
+    showError('admin-auth-error', '認証に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 管理者: レッスン室 =====
+async function loadAdminRooms() {
+  const listDiv = document.getElementById('admin-rooms-list');
+  listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">読み込み中...</div>';
+  try {
+    const snap = await roomsRef().orderBy('createdAt').get();
+    if (snap.empty) {
+      listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">🏫</div><p>レッスン室が登録されていません</p></div>';
+      return;
+    }
+    listDiv.innerHTML = '';
+    snap.forEach(doc => {
+      const d = doc.data();
+      const card = document.createElement('div');
+      card.className = 'admin-card';
+      card.innerHTML = `
+        <div class="admin-card-info">
+          <div class="admin-card-name">🎵 ${d.name}</div>
+          ${d.desc ? `<div class="admin-card-sub">${d.desc}</div>` : ''}
+        </div>
+        <div class="admin-card-actions">
+          <button class="btn-secondary-sm edit-room-btn" data-id="${doc.id}">編集</button>
+          <button class="btn-danger-sm delete-room-btn" data-id="${doc.id}" data-name="${d.name}">削除</button>
+        </div>
+      `;
+      card.querySelector('.edit-room-btn').onclick = () => openEditRoomModal(doc.id, doc.data());
+      card.querySelector('.delete-room-btn').onclick = (e) => {
+        handleDeleteRoom(e.target.dataset.id, e.target.dataset.name);
+      };
+      listDiv.appendChild(card);
+    });
+  } catch(e) {
+    listDiv.innerHTML = '<div class="empty-state"><p>読み込みに失敗しました</p></div>';
+  }
+}
+
+async function handleAddRoom() {
+  const name = document.getElementById('new-room-name').value.trim();
+  const desc = document.getElementById('new-room-desc').value.trim();
+  hideError('add-room-error');
+  if (!name) { showError('add-room-error', 'レッスン室名を入力してください'); return; }
+  
+  showLoading();
+  try {
+    await roomsRef().add({ name, desc, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('new-room-name').value = '';
+    document.getElementById('new-room-desc').value = '';
+    closeModal('modal-add-room');
+    loadAdminRooms();
+    // 生徒画面のルームリストも更新
+    await loadRooms();
+  } catch(e) {
+    showError('add-room-error', '追加に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function handleDeleteRoom(id, name) {
+  if (!confirm(`「${name}」を削除しますか？\n関連する予約もすべて削除されます。`)) return;
+  showLoading();
+  try {
+    // 関連予約を削除
+    const resSnap = await reservationsRef().where('roomId', '==', id).get();
+    const batch = db.batch();
+    resSnap.forEach(doc => batch.delete(doc.ref));
+    batch.delete(roomsRef().doc(id));
+    await batch.commit();
+    loadAdminRooms();
+  } catch(e) {
+    alert('削除に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 管理者: レッスン室編集 =====
+let _editRoomId = null;
+
+function openEditRoomModal(id, data) {
+  _editRoomId = id;
+  document.getElementById('edit-room-name').value = data.name || '';
+  document.getElementById('edit-room-desc').value = data.desc || '';
+  hideError('edit-room-error');
+  openModal('modal-edit-room');
+}
+
+async function handleEditRoomConfirm() {
+  const name = document.getElementById('edit-room-name').value.trim();
+  const desc = document.getElementById('edit-room-desc').value.trim();
+  hideError('edit-room-error');
+  if (!name) { showError('edit-room-error', 'レッスン室名を入力してください'); return; }
+  if (!_editRoomId) return;
+
+  showLoading();
+  try {
+    await roomsRef().doc(_editRoomId).update({ name, desc });
+    // 予約のroomNameも一括更新
+    const resSnap = await reservationsRef().where('roomId', '==', _editRoomId).get();
+    if (!resSnap.empty) {
+      const batch = db.batch();
+      resSnap.forEach(doc => batch.update(doc.ref, { roomName: name }));
+      await batch.commit();
+    }
+    // 生徒画面のルームリストも更新
+    await loadRooms();
+    closeModal('modal-edit-room');
+    loadAdminRooms();
+    _editRoomId = null;
+  } catch(e) {
+    showError('edit-room-error', '更新に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 管理者: 生徒編集 =====
+let _editStudentId = null;
+
+async function openEditStudentModal(id, data) {
+  _editStudentId = id;
+  document.getElementById('edit-student-grade').value = data.grade || '';
+  document.getElementById('edit-student-number').value = data.number || '';
+  document.getElementById('edit-student-name').value = data.name || '';
+  const deptGroup = document.getElementById('edit-student-dept-group');
+  const deptInput = document.getElementById('edit-student-dept');
+  if (data.grade === '他科') {
+    deptGroup.classList.remove('hidden');
+    deptInput.value = data.dept || '';
+  } else {
+    deptGroup.classList.add('hidden');
+    deptInput.value = '';
+  }
+  // 楽器セレクト
+  const instruments = await fetchInstruments();
+  const instrSel = document.getElementById('edit-student-instrument');
+  instrSel.innerHTML = '<option value="">選択してください</option>';
+  instruments.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i.name; o.textContent = i.name;
+    if (i.name === data.instrument) o.selected = true;
+    instrSel.appendChild(o);
+  });
+  hideError('edit-student-error');
+  openModal('modal-edit-student');
+}
+
+async function handleEditStudentConfirm() {
+  if (!_editStudentId) return;
+  const grade = document.getElementById('edit-student-grade').value;
+  const number = parseInt(document.getElementById('edit-student-number').value);
+  const name = document.getElementById('edit-student-name').value.trim();
+  const instrument = document.getElementById('edit-student-instrument').value;
+  const dept = grade === '他科' ? document.getElementById('edit-student-dept').value.trim() : '';
+  hideError('edit-student-error');
+
+  if (!grade) { showError('edit-student-error', '学年を選択してください'); return; }
+  if (!number) { showError('edit-student-error', '出席番号を入力してください'); return; }
+  if (!name) { showError('edit-student-error', '名前を入力してください'); return; }
+  if (!instrument) { showError('edit-student-error', '担当楽器を選択してください'); return; }
+
+  showLoading();
+  try {
+    // 重複チェック（自分以外）
+    const existing = await studentsRef().where('grade', '==', grade).where('number', '==', number).get();
+    const conflict = existing.docs.filter(d => d.id !== _editStudentId);
+    if (conflict.length > 0) {
+      showError('edit-student-error', 'その学年・出席番号はすでに登録されています');
+      hideLoading(); return;
+    }
+    const updateData = { grade, number, name, instrument };
+    if (dept) updateData.dept = dept;
+    await studentsRef().doc(_editStudentId).update(updateData);
+    window._allStudentDocs = null;
+    closeModal('modal-edit-student');
+    loadAdminStudents();
+    _editStudentId = null;
+  } catch(e) {
+    showError('edit-student-error', '更新に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 管理者: 週間予約タブ =====
+let adminWeekOffset = 0;
+let adminWeeklyRoomId = null;
+
+async function initAdminWeekly() {
+  // レッスン室セレクト
+  const sel = document.getElementById('admin-weekly-room-select');
+  if (!sel) return;
+  if (allRooms.length === 0) await loadRooms();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">レッスン室を選択してください</option>';
+  allRooms.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r.id; o.textContent = r.name;
+    if (r.id === cur) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => { adminWeeklyRoomId = sel.value; renderAdminWeeklyCalendar(); };
+  document.getElementById('admin-prev-week').onclick = () => { adminWeekOffset--; renderAdminWeeklyCalendar(); };
+  document.getElementById('admin-next-week').onclick = () => { adminWeekOffset++; renderAdminWeeklyCalendar(); };
+  if (!adminWeeklyRoomId && allRooms.length > 0) {
+    adminWeeklyRoomId = allRooms[0].id;
+    sel.value = adminWeeklyRoomId;
+  }
+  renderAdminWeeklyCalendar();
+}
+
+async function renderAdminWeeklyCalendar() {
+  const cal = document.getElementById('admin-weekly-calendar');
+  const label = document.getElementById('admin-week-label');
+  if (!cal || !label) return;
+
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay() + adminWeekOffset * 7);
+  const dates = Array.from({length: 7}, (_, i) => {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    return d;
+  });
+
+  label.textContent = `${dates[0].getMonth()+1}/${dates[0].getDate()} 〜 ${dates[6].getMonth()+1}/${dates[6].getDate()}`;
+
+  if (!adminWeeklyRoomId) {
+    cal.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-secondary)">レッスン室を選択してください</div>';
+    return;
+  }
+
+  cal.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-secondary)">読み込み中...</div>';
+
+  const dateStrs = dates.map(d => formatDate(d));
+  const startStr = dateStrs[0], endStr = dateStrs[6];
+
+  let reservations = [];
+  try {
+    // roomIdのみで絞り込み→クライアント側で日付フィルタ（複合インデックス不要）
+    const snap = await reservationsRef().where('roomId', '==', adminWeeklyRoomId).get();
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.date >= startStr && d.date <= endStr) {
+        reservations.push({ id: doc.id, ...d });
+      }
+    });
+  } catch(e) {
+    cal.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--danger)">読み込みに失敗しました: ' + e.message + '</div>';
+    return;
+  }
+
+  // カレンダー描画
+  const todayStr = formatDate(today);
+  cal.style.gridTemplateColumns = '56px repeat(7, 1fr)';
+  cal.innerHTML = '';
+
+  // ヘッダー行
+  const emptyHeader = document.createElement('div');
+  emptyHeader.className = 'cal-header cal-header-empty';
+  cal.appendChild(emptyHeader);
+  dates.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'cal-header' + (formatDate(d) === todayStr ? ' today-header' : '');
+    h.textContent = `${DAY_NAMES[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
+    cal.appendChild(h);
+  });
+
+  // 時刻スロット
+  TIME_SLOTS.forEach((slot, slotIdx) => {
+    const periodLabel = document.createElement('div');
+    periodLabel.className = 'cal-period-label';
+    periodLabel.style.fontSize = '10px';
+    periodLabel.textContent = slot;
+    cal.appendChild(periodLabel);
+
+    dates.forEach(d => {
+      const dateStr = formatDate(d);
+      const isToday = dateStr === todayStr;
+      const bookings = reservations.filter(r => {
+        if (r.date !== dateStr) return false;
+        const si = timeToSlotIndex(r.startTime || '08:45');
+        const ei = timeToSlotIndex(r.endTime || '15:20');
+        return slotIdx >= si && slotIdx < ei;
+      });
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell' +
+        (isToday ? ' today-col' : '') +
+        (bookings.length >= 2 ? ' booked' : bookings.length === 1 ? ' half-booked' : '');
+      if (bookings.length > 0) {
+        const info = document.createElement('div');
+        info.className = 'cell-content';
+        info.innerHTML = bookings.map(b =>
+          `<div class="booker" style="font-size:10px;">${b.teacher || (b.studentNames||[b.studentName||'']).join('・')}</div>`
+        ).join('');
+        cell.appendChild(info);
+      }
+      cal.appendChild(cell);
+    });
+  });
+}
+
+function handleAdminPrint() {
+  if (!adminWeeklyRoomId) { alert('レッスン室を選択してください'); return; }
+  const roomName = allRooms.find(r => r.id === adminWeeklyRoomId)?.name || '';
+  const labelEl = document.getElementById('admin-week-label');
+  const weekLabel = labelEl ? labelEl.textContent : '';
+  const calEl = document.getElementById('admin-weekly-calendar');
+  if (!calEl) return;
+
+  // 印刷ウィンドウを開く
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>週間予約表 - ${roomName}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; font-size: 10px; padding: 0; }
+  .header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  h2 { font-size: 13px; font-weight: 700; }
+  .subtitle { font-size: 9px; color: #666; }
+  .calendar {
+    display: grid;
+    grid-template-columns: 40px repeat(7, 1fr);
+    border: 1px solid #999;
+    overflow: hidden;
+    background: #bbb;
+    gap: 1px;
+    width: 100%;
+  }
+  .cal-header {
+    background: #2D5A8E;
+    color: white;
+    padding: 4px 2px;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    min-height: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cal-header-empty { background: #2D5A8E; }
+  .cal-header.today-header { background: #E8834B; }
+  .cal-period-label {
+    background: #f0f2f5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; color: #555; font-weight: 600;
+    min-height: 19px;
+  }
+  .cal-cell {
+    background: white;
+    min-height: 19px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cal-cell.booked { background: #fde8e8; }
+  .cal-cell.half-booked { background: #fff8e1; }
+  .cal-cell.today-col { background: #fffbf0; }
+  .cell-content { font-size: 7px; text-align: center; padding: 1px; line-height: 1.1; overflow: hidden; }
+  .booker { color: #c0392b; font-weight: 700; }
+  @page { size: A4 landscape; margin: 8mm; }
+  @media print {
+    html, body { width: 277mm; height: 190mm; overflow: hidden; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="header-row">
+  <h2>🎵 ${roomName}　週間予約表　${weekLabel}</h2>
+  <div class="subtitle">印刷日時：${new Date().toLocaleString('ja-JP')}</div>
+</div>
+<div class="calendar">${calEl.innerHTML}</div>
+<script>window.onload=()=>{ setTimeout(()=>window.print(), 300); }<\/script>
+</body>
+</html>`);
+  printWin.document.close();
+}
+
+
+async function populateAdminRoomSelect() {
+  const sel = document.getElementById('admin-res-room');
+  const filterSel = document.getElementById('admin-filter-room');
+  sel.innerHTML = '';
+  filterSel.innerHTML = '<option value="">全てのレッスン室</option>';
+  try {
+    const snap = await roomsRef().orderBy('createdAt').get();
+    snap.forEach(doc => {
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = doc.data().name;
+      sel.appendChild(opt);
+      filterSel.appendChild(opt.cloneNode(true));
+    });
+  } catch(e) {}
+}
+
+async function loadAdminReservations() {
+  const listDiv = document.getElementById('admin-reservations-list');
+  listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">読み込み中...</div>';
+  
+  await populateAdminRoomSelect();
+  
+  const dateFilter = document.getElementById('admin-filter-date').value;
+  const roomFilter = document.getElementById('admin-filter-room').value;
+  const todayStr = getTodayStr();
+  const nowTime = (() => {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  })();
+
+  try {
+    let query = reservationsRef();
+    if (dateFilter) {
+      query = query.where('date', '==', dateFilter);
+    } else {
+      // 日付フィルターなしの場合は今日以降のみ取得
+      query = query.where('date', '>=', todayStr);
+    }
+    if (roomFilter) query = query.where('roomId', '==', roomFilter);
+    const snap = await query.get();
+    let resDocs = [];
+    snap.forEach(doc => resDocs.push(doc));
+
+    // 今日の予約で終了時刻が過ぎたものは除外（日付フィルター指定時は除外しない）
+    if (!dateFilter) {
+      resDocs = resDocs.filter(doc => {
+        const d = doc.data();
+        if (d.date > todayStr) return true; // 明日以降は全て表示
+        // 今日の予約：終了時刻が現在時刻より後のもののみ
+        const endTime = d.endTime || (d.endPeriod ? LEGACY_PERIOD_TIMES[d.endPeriod]?.e : null) || '23:59';
+        return endTime > nowTime;
+      });
+    }
+
+    resDocs.sort((a, b) => {
+      const ad = a.data(), bd = b.data();
+      if (ad.date !== bd.date) return ad.date.localeCompare(bd.date);
+      const as = ad.startTime || '99:99', bs = bd.startTime || '99:99';
+      return as.localeCompare(bs);
+    });
+
+    if (resDocs.length === 0) {
+      listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>予約がありません</p></div>';
+      return;
+    }
+    listDiv.innerHTML = '';
+    resDocs.forEach(doc => {
+      const d = doc.data();
+      const date = new Date(d.date + 'T00:00:00');
+      const card = document.createElement('div');
+      card.className = 'admin-card';
+      card.innerHTML = `
+        <div class="admin-card-info">
+          <div class="admin-card-name">${d.roomName} ／ ${(d.studentNames || [d.studentName]).join('・')}</div>
+          <div class="admin-card-sub">${date.getMonth()+1}/${date.getDate()}(${DAY_NAMES[date.getDay()]}) ／ ${d.startTime ? d.startTime+'〜'+d.endTime : (d.startPeriod ? d.startPeriod+'限' : '')}${d.instrument ? ' ／ '+d.instrument : ''}${d.teacher ? ' 先生:'+d.teacher : ''}</div>
+        </div>
+        <div class="admin-card-actions">
+          <button class="btn-secondary-sm edit-admin-res-btn" data-id="${doc.id}">編集</button>
+          <button class="btn-danger-sm delete-admin-res-btn" data-id="${doc.id}">削除</button>
+        </div>
+      `;
+      card.querySelector('.edit-admin-res-btn').onclick = () => openEditAdminReservationModal(doc.id, doc.data());
+      card.querySelector('.delete-admin-res-btn').onclick = async (e) => {
+        if (confirm('この予約を削除しますか？')) {
+          showLoading();
+          try {
+            await reservationsRef().doc(e.target.dataset.id).delete();
+            loadAdminReservations();
+          } finally { hideLoading(); }
+        }
+      };
+      listDiv.appendChild(card);
+    });
+  } catch(e) {
+    listDiv.innerHTML = '<div class="empty-state"><p>読み込みに失敗しました</p></div>';
+  }
+}
+
+async function handleAdminAddReservation() {
+  const roomId = document.getElementById('admin-res-room').value;
+  const dateStr = document.getElementById('admin-res-date').value;
+  const startTime = document.getElementById('admin-res-start').value;
+  const endTime = document.getElementById('admin-res-end').value;
+  const studentName = document.getElementById('admin-res-student').value.trim() || '管理者';
+  const instrument = document.getElementById('admin-res-instrument').value;
+  const teacher = document.getElementById('admin-res-teacher').value.trim();
+  hideError('admin-res-error');
+  
+  if (!roomId) { showError('admin-res-error', 'レッスン室を選択してください'); return; }
+  if (!dateStr) { showError('admin-res-error', '日付を入力してください'); return; }
+  if (startTime >= endTime) { showError('admin-res-error', '終了時刻は開始時刻より後にしてください'); return; }
+
+  showLoading();
+  try {
+    const snap = await reservationsRef().where('roomId', '==', roomId).where('date', '==', dateStr).get();
+    let countOverlap = 0;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      let ds = d.startTime, de = d.endTime;
+      if (!ds && d.startPeriod) {
+        ds = LEGACY_PERIOD_TIMES[d.startPeriod]?.s || '08:45';
+        de = LEGACY_PERIOD_TIMES[d.endPeriod]?.e || '15:20';
+      }
+      if (!ds) continue;
+      if (!(endTime <= ds || startTime >= de)) {
+        countOverlap++;
+      }
+    }
+    if (countOverlap >= 2) {
+      showError('admin-res-error', 'この時間帯はすでに2グループ予約が入っています');
+      hideLoading(); return;
+    }
+    const roomSnap = await roomsRef().doc(roomId).get();
+    await reservationsRef().add({
+      roomId, roomName: roomSnap.data()?.name || '',
+      date: dateStr,
+      startPeriod: 1, endPeriod: 1, // 互換用
+      startTime, endTime,
+      instrument, teacher,
+      studentId: 'admin', studentName,
+      studentNames: [studentName], studentIds: ['admin'],
+      studentGrade: '管理者',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('modal-admin-reservation');
+    loadAdminReservations();
+  } catch(e) {
+    showError('admin-res-error', '追加に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 管理者: 生徒管理 =====
+async function loadAdminStudents() {
+  const listDiv = document.getElementById('admin-students-list');
+  listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">読み込み中...</div>';
+  try {
+    const snap = await studentsRef().get();
+    const allDocs = [];
+    snap.forEach(doc => allDocs.push(doc));
+    allDocs.sort((a, b) => {
+      const ag = a.data().grade, bg = b.data().grade;
+      // 他科は最後
+      const aOrder = ag === '他科' ? 9 : parseInt(ag) || 0;
+      const bOrder = bg === '他科' ? 9 : parseInt(bg) || 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (a.data().number || 0) - (b.data().number || 0);
+    });
+    if (allDocs.length === 0) {
+      listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">👩‍🎓</div><p>生徒が登録されていません</p></div>';
+      return;
+    }
+    listDiv.innerHTML = '';
+    allDocs.forEach(doc => {
+      const d = doc.data();
+      const card = document.createElement('div');
+      card.className = 'admin-card';
+      card.innerHTML = `
+        <div class="admin-card-info">
+          <div class="admin-card-name">${d.name}</div>
+          <div class="admin-card-sub">${d.grade === '他科' ? '他科' + (d.dept ? '（'+d.dept+'）' : '') : d.grade+'年'} ${d.number}番${d.instrument ? '　' + d.instrument : ''}</div>
+        </div>
+        <div class="admin-card-actions">
+          <button class="btn-secondary-sm edit-student-btn" data-id="${doc.id}">編集</button>
+          <button class="btn-danger-sm delete-student-btn" data-id="${doc.id}" data-name="${d.name}">削除</button>
+        </div>
+      `;
+      card.querySelector('.edit-student-btn').onclick = () => openEditStudentModal(doc.id, doc.data());
+      card.querySelector('.delete-student-btn').onclick = async (e) => {
+        if (confirm(`「${e.target.dataset.name}」を削除しますか？`)) {
+          showLoading();
+          try {
+            await studentsRef().doc(e.target.dataset.id).delete();
+            window._allStudentDocs = null;
+            loadAdminStudents();
+          } finally { hideLoading(); }
+        }
+      };
+      listDiv.appendChild(card);
+    });
+  } catch(e) {
+    listDiv.innerHTML = '<div class="empty-state"><p>読み込みに失敗しました</p></div>';
+  }
+}
+
+// ===== 管理者: 生徒追加 =====
+async function handleAdminAddStudent() {
+  const grade = document.getElementById('admin-student-grade').value;
+  const number = document.getElementById('admin-student-number').value;
+  const name = document.getElementById('admin-student-name').value.trim();
+  const instrument = document.getElementById('admin-student-instrument').value;
+  const dept = grade === '他科' ? (document.getElementById('admin-student-dept')?.value.trim() || '') : '';
+  hideError('add-student-error');
+
+  if (!grade) { showError('add-student-error', '学年を選択してください'); return; }
+  if (!number) { showError('add-student-error', '出席番号を入力してください'); return; }
+  if (!name) { showError('add-student-error', '名前を入力してください'); return; }
+  if (!instrument) { showError('add-student-error', '担当楽器を選択してください'); return; }
+
+  showLoading();
+  try {
+    const existing = await studentsRef()
+      .where('grade', '==', grade)
+      .where('number', '==', parseInt(number))
+      .get();
+    if (!existing.empty) {
+      showError('add-student-error', 'その学年・出席番号はすでに登録されています');
+      hideLoading(); return;
+    }
+    const saveData = { grade, number: parseInt(number), name, instrument, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    if (dept) saveData.dept = dept;
+    await studentsRef().add(saveData);
+    closeModal('modal-add-student');
+    window._allStudentDocs = null;
+    loadAdminStudents();
+  } catch(e) {
+    showError('add-student-error', '追加に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 楽器管理 =====
+const instrumentsRef = () => db.collection('instruments');
+
+// Firestoreから楽器リストを取得（キャッシュ付き）
+async function fetchInstruments(forceRefresh = false) {
+  if (!forceRefresh && window._instrumentCache) return window._instrumentCache;
+  try {
+    const snap = await instrumentsRef().get();
+    const list = [];
+    snap.forEach(doc => list.push({ id: doc.id, name: doc.data().name, order: doc.data().order || 0 }));
+    list.sort((a, b) => a.order - b.order);
+    // 空なら初期データを使用
+    if (list.length === 0) {
+      window._instrumentCache = getDefaultInstruments().map((n,i) => ({ id: null, name: n, order: i }));
+    } else {
+      window._instrumentCache = list;
+    }
+  } catch(e) {
+    window._instrumentCache = getDefaultInstruments().map((n,i) => ({ id: null, name: n, order: i }));
+  }
+  return window._instrumentCache;
+}
+
+function getDefaultInstruments() {
+  return ['ピアノ','声楽','ヴァイオリン','ヴィオラ','チェロ','コントラバス','フルート','オーボエ','クラリネット','ファゴット','サクソフォン','ホルン','トランペット','トロンボーン','ユーフォニアム','チューバ','打楽器','ハープ','ギター','作曲','その他'];
+}
+
+// プルダウンを動的に構築（新規登録・予約フィルター・モーダル楽器名に使用）
+async function populateInstrumentSelects() {
+  const instruments = await fetchInstruments();
+  const names = instruments.map(i => i.name);
+
+  // 新規登録画面
+  const regSel = document.getElementById('reg-instrument');
+  if (regSel) {
+    const cur = regSel.value;
+    regSel.innerHTML = '<option value="">選択してください</option>';
+    names.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      regSel.appendChild(o);
+    });
+    if (cur) regSel.value = cur;
+  }
+
+  // 予約モーダルの楽器フィルター
+  const filterSel = document.getElementById('modal-instrument-filter');
+  if (filterSel) {
+    const cur = filterSel.value;
+    filterSel.innerHTML = '<option value="">🎵 楽器で絞り込む（全員表示）</option>';
+    names.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      filterSel.appendChild(o);
+    });
+    if (cur) filterSel.value = cur;
+  }
+}
+
+async function loadAdminInstruments() {
+  const listDiv = document.getElementById('admin-instruments-list');
+  listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary)">読み込み中...</div>';
+
+  try {
+    // orderByを使わずに全件取得してクライアントでソート（インデックスエラー回避）
+    const snap = await instrumentsRef().get();
+    let items = [];
+    snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+    items.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    // Firestoreに何もなければ初期データを表示（未保存状態）
+    if (items.length === 0) {
+      listDiv.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🎵</div>
+          <p>楽器が登録されていません</p>
+          <p style="font-size:12px;margin-top:8px;">上のフォームから追加してください</p>
+          <button class="btn-secondary" style="margin-top:16px;width:auto;padding:8px 20px;" onclick="initDefaultInstruments()">初期楽器を一括登録</button>
+        </div>`;
+      return;
+    }
+
+    listDiv.innerHTML = '';
+    items.forEach((item, idx) => {
+      const card = document.createElement('div');
+      card.className = 'admin-card';
+      card.innerHTML = `
+        <div class="admin-card-info">
+          <div class="admin-card-name">🎵 ${item.name}</div>
+        </div>
+        <div class="admin-card-actions">
+          <button class="btn-secondary-sm edit-instrument-btn" data-id="${item.id}" data-name="${item.name}">編集</button>
+          <button class="btn-danger-sm delete-instrument-btn" data-id="${item.id}" data-name="${item.name}">削除</button>
+        </div>
+      `;
+      card.querySelector('.edit-instrument-btn').onclick = (e) => {
+        openEditInstrumentModal(e.target.dataset.id, e.target.dataset.name);
+      };
+      card.querySelector('.delete-instrument-btn').onclick = async (e) => {
+        const id = e.target.dataset.id;
+        const name = e.target.dataset.name;
+        if (!confirm(`「${name}」を削除しますか？`)) return;
+        showLoading();
+        try {
+          await instrumentsRef().doc(id).delete();
+          window._instrumentCache = null;
+          await loadAdminInstruments();
+          await populateInstrumentSelects();
+        } catch(err) {
+          alert('削除に失敗しました');
+        } finally { hideLoading(); }
+      };
+      listDiv.appendChild(card);
+    });
+  } catch(e) {
+    listDiv.innerHTML = '<div class="empty-state"><p>読み込みに失敗しました: ' + e.message + '</p></div>';
+  }
+}
+
+async function handleAddInstrument() {
+  const input = document.getElementById('new-instrument-name');
+  const name = input.value.trim();
+  if (!name) { alert('楽器名を入力してください'); return; }
+
+  showLoading();
+  try {
+    // 全件取得してクライアントで最大orderを求める（orderByインデックスエラー回避）
+    const snap = await instrumentsRef().get();
+    let maxOrder = 0;
+    snap.forEach(doc => {
+      const o = doc.data().order || 0;
+      if (o > maxOrder) maxOrder = o;
+    });
+    await instrumentsRef().add({ name, order: maxOrder + 1, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    input.value = '';
+    window._instrumentCache = null;
+    await loadAdminInstruments();
+    await populateInstrumentSelects();
+  } catch(e) {
+    alert('追加に失敗しました: ' + e.message);
+  } finally { hideLoading(); }
+}
+
+// ===== 楽器名編集 =====
+let _editInstrumentId = null;
+let _editInstrumentOldName = null;
+
+function openEditInstrumentModal(id, name) {
+  _editInstrumentId = id;
+  _editInstrumentOldName = name;
+  document.getElementById('edit-instrument-old-name').value = name;
+  document.getElementById('edit-instrument-new-name').value = name;
+  document.getElementById('edit-instrument-progress').style.display = 'none';
+  hideError('edit-instrument-error');
+  openModal('modal-edit-instrument');
+}
+
+async function handleEditInstrumentConfirm() {
+  const newName = document.getElementById('edit-instrument-new-name').value.trim();
+  hideError('edit-instrument-error');
+
+  if (!newName) { showError('edit-instrument-error', '新しい楽器名を入力してください'); return; }
+  if (newName === _editInstrumentOldName) { showError('edit-instrument-error', '楽器名が変わっていません'); return; }
+  if (!_editInstrumentId) { showError('edit-instrument-error', '楽器IDが不正です'); return; }
+
+  if (!confirm(`「${_editInstrumentOldName}」を「${newName}」に変更しますか？\n関連する生徒・予約データも全て更新されます。`)) return;
+
+  const progressEl = document.getElementById('edit-instrument-progress');
+  progressEl.style.display = 'block';
+  progressEl.textContent = '楽器名を更新中...';
+  document.getElementById('btn-edit-instrument-confirm').disabled = true;
+  showLoading();
+
+  try {
+    // 1. instrumentsコレクションのドキュメントを更新
+    await instrumentsRef().doc(_editInstrumentId).update({ name: newName });
+    progressEl.textContent = '生徒データを更新中...';
+
+    // 2. studentsコレクション：instrumentが旧名と一致するものを全更新
+    const studentsSnap = await studentsRef().where('instrument', '==', _editInstrumentOldName).get();
+    if (!studentsSnap.empty) {
+      const BATCH_SIZE = 400;
+      const studentDocs = [];
+      studentsSnap.forEach(doc => studentDocs.push(doc));
+      for (let i = 0; i < studentDocs.length; i += BATCH_SIZE) {
+        const batch = db.batch();
+        studentDocs.slice(i, i + BATCH_SIZE).forEach(doc => {
+          batch.update(doc.ref, { instrument: newName });
+        });
+        await batch.commit();
+      }
+    }
+    progressEl.textContent = '予約データを更新中...';
+
+    // 3. reservationsコレクション：instrumentが旧名のものを全更新
+    const resSnap = await reservationsRef().where('instrument', '==', _editInstrumentOldName).get();
+    if (!resSnap.empty) {
+      const BATCH_SIZE = 400;
+      const resDocs = [];
+      resSnap.forEach(doc => resDocs.push(doc));
+      for (let i = 0; i < resDocs.length; i += BATCH_SIZE) {
+        const batch = db.batch();
+        resDocs.slice(i, i + BATCH_SIZE).forEach(doc => {
+          batch.update(doc.ref, { instrument: newName });
+        });
+        await batch.commit();
+      }
+    }
+
+    // 4. キャッシュクリア・UI更新
+    window._instrumentCache = null;
+    window._allStudentDocs = null;
+    progressEl.textContent = '完了しました！';
+    await loadAdminInstruments();
+    await populateInstrumentSelects();
+
+    setTimeout(() => {
+      closeModal('modal-edit-instrument');
+      _editInstrumentId = null;
+      _editInstrumentOldName = null;
+    }, 800);
+  } catch(e) {
+    progressEl.style.display = 'none';
+    showError('edit-instrument-error', '更新に失敗しました: ' + e.message);
+  } finally {
+    document.getElementById('btn-edit-instrument-confirm').disabled = false;
+    hideLoading();
+  }
+}
+
+
+async function initDefaultInstruments() {
+  if (!confirm('初期楽器リストを一括登録しますか？')) return;
+  showLoading();
+  try {
+    const defaults = getDefaultInstruments();
+    const batch = db.batch();
+    defaults.forEach((name, i) => {
+      const ref = instrumentsRef().doc();
+      batch.set(ref, { name, order: i, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+    await batch.commit();
+    window._instrumentCache = null;
+    await loadAdminInstruments();
+    await populateInstrumentSelects();
+  } catch(e) {
+    alert('登録に失敗しました: ' + e.message);
+  } finally { hideLoading(); }
+}
+
+// ===== 管理者: 設定 =====
+async function loadAdminSettings() {
+  try {
+    const snap = await settingsRef().get();
+    if (snap.exists) {
+      document.getElementById('school-name-input').value = snap.data().schoolName || '';
+      document.getElementById('school-code-setting').value = snap.data().schoolCode || SCHOOL_CODE;
+    }
+  } catch(e) {}
+}
+
+async function handleChangePassword() {
+  const current = document.getElementById('current-pw').value;
+  const newPw = document.getElementById('new-pw').value;
+  const confirm2 = document.getElementById('new-pw-confirm').value;
+  const msgEl = document.getElementById('pw-change-msg');
+  msgEl.className = 'hidden';
+
+  if (!current || !newPw || !confirm2) {
+    msgEl.className = 'error-msg'; msgEl.textContent = '全て入力してください'; return;
+  }
+  if (newPw !== confirm2) {
+    msgEl.className = 'error-msg'; msgEl.textContent = '新しいパスワードが一致しません'; return;
+  }
+  if (newPw.length < 6) {
+    msgEl.className = 'error-msg'; msgEl.textContent = 'パスワードは6文字以上にしてください'; return;
+  }
+
+  showLoading();
+  try {
+    const snap = await settingsRef().get();
+    const storedPw = snap.exists ? (snap.data().adminPassword || 'admin1234') : 'admin1234';
+    if (current !== storedPw) {
+      msgEl.className = 'error-msg'; msgEl.textContent = '現在のパスワードが正しくありません';
+      hideLoading(); return;
+    }
+    await settingsRef().set({ adminPassword: newPw }, { merge: true });
+    msgEl.className = 'success-msg'; msgEl.textContent = 'パスワードを変更しました';
+    document.getElementById('current-pw').value = '';
+    document.getElementById('new-pw').value = '';
+    document.getElementById('new-pw-confirm').value = '';
+  } catch(e) {
+    msgEl.className = 'error-msg'; msgEl.textContent = '変更に失敗しました';
+  } finally {
+    hideLoading();
+  }
+}
+
+async function handleSaveSchoolName() {
+  const name = document.getElementById('school-name-input').value.trim();
+  const newCode = document.getElementById('school-code-setting').value.trim();
+  if (!name) { alert('学校名を入力してください'); return; }
+  if (!newCode) { alert('学校コードを入力してください'); return; }
+  showLoading();
+  try {
+    await settingsRef().set({ schoolName: name, schoolCode: newCode }, { merge: true });
+    // メモリ上のSCHOOL_CODEも更新
+    window._dynamicSchoolCode = newCode;
+    alert('保存しました');
+  } catch(e) {
+    alert('保存に失敗しました');
+  } finally {
+    hideLoading();
+  }
+}
+
+</script>
+
+<script>
+// ===== モニター機能 =====
+const MON_DAY_NAMES = ['日','月','火','水','木','金','土'];
+let monUnsubRooms=null,monUnsubRes=null,monRooms=[],monReservations=[],monClockInterval=null;
+
+function monFormatDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+function monUpdateClock(){
+  const now=new Date();
+  const el=document.getElementById('mon-clock');
+  if(el)el.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const de=document.getElementById('mon-date');
+  if(de)de.textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日(${MON_DAY_NAMES[now.getDay()]})`;
+  monRenderRooms();
+}
+
+// 現在時刻 "HH:MM"
+function monNowTime(){
+  const now=new Date();
+  return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+// 予約が現在進行中か
+function monIsOngoing(res){
+  let s=res.startTime,e=res.endTime;
+  if(!s&&res.startPeriod){const lp=LEGACY_PERIOD_TIMES||{1:{s:'08:45',e:'09:35'},2:{s:'09:45',e:'10:35'},3:{s:'10:45',e:'11:35'},4:{s:'12:30',e:'13:20'},5:{s:'13:30',e:'14:20'},6:{s:'14:30',e:'15:20'}};s=lp[res.startPeriod]?.s||'08:45';e=lp[res.endPeriod]?.e||'15:20';}
+  if(!s)return false;
+  const now=monNowTime();
+  return s<=now&&now<e;
+}
+
+// 予約を時刻で並び替え
+function monSortByTime(arr){
+  return [...arr].sort((a,b)=>{
+    const sa=a.startTime||'99:99',sb=b.startTime||'99:99';
+    return sa.localeCompare(sb);
+  });
+}
+
+function monRenderRooms(){
+  const grid=document.getElementById('mon-rooms-grid');
+  if(!grid)return;
+  if(monRooms.length===0){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#6b7280;font-size:18px;">レッスン室が登録されていません</div>';return;}
+  
+  const roomBookings={};
+  monReservations.forEach(res=>{
+    if(!roomBookings[res.roomId])roomBookings[res.roomId]=[];
+    roomBookings[res.roomId].push(res);
+  });
+  
+  let freeCount=0,busyCount=0;
+  grid.innerHTML='';
+  
+  monRooms.forEach(room=>{
+    const bookings=roomBookings[room.id]||[];
+    const sorted=monSortByTime(bookings);
+    const currentRes=sorted.find(r=>monIsOngoing(r));
+    const isCurrentlyBusy=!!currentRes;
+    const now=monNowTime();
+    const nextRes=sorted.find(r=>{
+      let s=r.startTime;
+      if(!s&&r.startPeriod){const lp={1:'08:45',2:'09:45',3:'10:45',4:'12:30',5:'13:30',6:'14:30'};s=lp[r.startPeriod];}
+      return s&&s>now;
+    });
+    
+    if(isCurrentlyBusy)busyCount++;else freeCount++;
+    
+    const card=document.createElement('div');
+    const statusColor=isCurrentlyBusy?'#ef4444':'#22c55e';
+    const statusBg=isCurrentlyBusy?'#fef2f2':'#f0fdf4';
+    const statusBorder=isCurrentlyBusy?'#fca5a5':'#86efac';
+    const statusText=isCurrentlyBusy?'🔴 使用中':'🟢 空き';
+    const cardBorder=isCurrentlyBusy?'#fca5a5':'#bfdbfe';
+    const cardBg=isCurrentlyBusy?'#fff5f5':'#ffffff';
+    
+    card.style.cssText=`background:${cardBg};border:2px solid ${cardBorder};border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);transition:all .3s;`;
+    
+    // カードヘッダー（部屋名と状態）
+    let headerHtml=`
+      <div style="padding:16px 20px 12px;border-bottom:1px solid ${cardBorder};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:22px;font-weight:800;color:#1a2240;">🎵 ${room.name}</div>
+            ${room.desc?`<div style="font-size:12px;color:#6b7280;margin-top:2px;">${room.desc}</div>`:''}
+          </div>
+          <div style="padding:6px 16px;border-radius:24px;font-size:14px;font-weight:700;background:${statusBg};color:${statusColor};border:2px solid ${statusBorder};white-space:nowrap;">${statusText}</div>
+        </div>
+      </div>`;
+    
+    // 現在のレッスン詳細
+    let currentHtml='';
+    if(currentRes){
+      let cs=currentRes.startTime,ce=currentRes.endTime;
+      if(!cs&&currentRes.startPeriod){const lp={1:{s:'08:45',e:'09:35'},2:{s:'09:45',e:'10:35'},3:{s:'10:45',e:'11:35'},4:{s:'12:30',e:'13:20'},5:{s:'13:30',e:'14:20'},6:{s:'14:30',e:'15:20'}};cs=lp[currentRes.startPeriod]?.s||'--:--';ce=lp[currentRes.endPeriod]?.e||'--:--';}
+      const names=(currentRes.studentNames||[currentRes.studentName]).join('・');
+      currentHtml=`
+        <div style="padding:12px 20px;background:#fef3c7;border-bottom:1px solid #fcd34d;">
+          <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">▶ 現在のレッスン</div>
+          <div style="font-size:20px;font-weight:800;color:#1a2240;">${cs}〜${ce}</div>
+          ${currentRes.teacher?`<div style="font-size:26px;font-weight:900;color:#1a2240;margin-top:6px;">👨‍🏫 ${currentRes.teacher}</div>`:''}
+          ${currentRes.instrument?`<div style="font-size:16px;color:#6b7280;margin-top:4px;">🎵 ${currentRes.instrument}</div>`:''}
+          ${names?`<div style="font-size:15px;color:#2563eb;margin-top:4px;font-weight:600;">👤 ${names}</div>`:''}
+        </div>`;
+    }
+    
+    // 本日のスケジュール一覧（表形式）
+    let scheduleHtml='';
+    if(sorted.length>0){
+      const rows=sorted.map(res=>{
+        let rs=res.startTime,re2=res.endTime;
+        if(!rs&&res.startPeriod){const lp={1:{s:'08:45',e:'09:35'},2:{s:'09:45',e:'10:35'},3:{s:'10:45',e:'11:35'},4:{s:'12:30',e:'13:20'},5:{s:'13:30',e:'14:20'},6:{s:'14:30',e:'15:20'}};rs=lp[res.startPeriod]?.s||'--:--';re2=lp[res.endPeriod]?.e||'--:--';}
+        const ongoing=monIsOngoing(res);
+        const past=re2&&re2<now;
+        const names=(res.studentNames||[res.studentName]).join('・');
+        const rowBg=ongoing?'#fffbeb':(past?'#f9fafb':'#f0f9ff');
+        const rowBorder=ongoing?'#fbbf24':(past?'#e5e7eb':'#bfdbfe');
+        const timeColor=ongoing?'#b45309':(past?'#9ca3af':'#1e40af');
+        return `
+          <tr style="background:${rowBg};border-bottom:1px solid #e5e7eb;">
+            <td style="padding:10px 12px;font-size:14px;font-weight:700;color:${timeColor};white-space:nowrap;border-left:4px solid ${rowBorder};">
+              ${ongoing?'▶ ':''}${rs}〜${re2}
+            </td>
+            <td style="padding:10px 12px;font-size:15px;color:#374151;">
+              ${res.teacher?`<span style="font-weight:800;font-size:17px;color:#1a2240;">${res.teacher}</span>`:''}
+              ${res.instrument?` <span style="color:#6b7280;font-size:13px;">${res.instrument}</span>`:''}
+            </td>
+            <td style="padding:10px 12px;font-size:13px;color:${past?'#9ca3af':'#2563eb'};">
+              ${names||''}
+            </td>
+          </tr>`;
+      }).join('');
+      
+      scheduleHtml=`
+        <div style="padding:12px 20px 16px;">
+          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">本日のスケジュール</div>
+          <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">時間</th>
+                <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">先生 / 楽器</th>
+                <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">生徒</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          ${nextRes?`<div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;font-size:13px;color:#1e40af;">⏭ 次のレッスン：${nextRes.startTime||'--:--'}〜${nextRes.endTime||'--:--'}${nextRes.teacher?' / '+nextRes.teacher:''}</div>`:''}
+        </div>`;
+    } else {
+      scheduleHtml=`<div style="padding:24px 20px;text-align:center;color:#9ca3af;font-size:15px;">本日のレッスンはありません</div>`;
+    }
+    
+    card.innerHTML=headerHtml+currentHtml+scheduleHtml;
+    grid.appendChild(card);
+  });
+  
+  const sf=document.getElementById('mon-stat-free'),sb=document.getElementById('mon-stat-busy'),st=document.getElementById('mon-stat-total');
+  if(sf)sf.textContent=freeCount;if(sb)sb.textContent=busyCount;if(st)st.textContent=monRooms.length;
+  const ri=document.getElementById('mon-refresh-info');
+  const now2=new Date();
+  if(ri)ri.textContent=`最終更新: ${String(now2.getHours()).padStart(2,'0')}:${String(now2.getMinutes()).padStart(2,'0')}:${String(now2.getSeconds()).padStart(2,'0')} ／ リアルタイム更新中`;
+}
+
+function monStart(){
+  const todayStr=monFormatDate(new Date());
+  db.collection('settings').doc('config').get().then(snap=>{
+    const el=document.getElementById('mon-school-name');
+    if(snap.exists&&snap.data().schoolName&&el)el.textContent=snap.data().schoolName+' レッスン室';
+  }).catch(()=>{});
+  monUnsubRooms=db.collection('rooms').orderBy('createdAt').onSnapshot(snap=>{
+    monRooms=[];snap.forEach(doc=>monRooms.push({id:doc.id,...doc.data()}));monRenderRooms();
+  });
+  monUnsubRes=db.collection('reservations').where('date','==',todayStr).onSnapshot(snap=>{
+    monReservations=[];snap.forEach(doc=>monReservations.push({id:doc.id,...doc.data()}));monRenderRooms();
+  });
+  monUpdateClock();
+  monClockInterval=setInterval(monUpdateClock,1000);
+}
+
+function monStop(){
+  if(monUnsubRooms){monUnsubRooms();monUnsubRooms=null;}
+  if(monUnsubRes){monUnsubRes();monUnsubRes=null;}
+  if(monClockInterval){clearInterval(monClockInterval);monClockInterval=null;}
+}
+
+// ===== 予約編集（生徒用） =====
+let _editBookingId = null;
+let _editBookingData = null;
+
+async function openEditBookingModal(reservationId) {
+  closeModal('modal-cell-detail');
+  showLoading();
+  try {
+    const docSnap = await reservationsRef().doc(reservationId).get();
+    if (!docSnap.exists) { alert('予約が見つかりません'); hideLoading(); return; }
+    const d = docSnap.data();
+
+    // 自分の予約かチェック
+    const ids = d.studentIds || (d.studentId ? [d.studentId] : []);
+    if (!ids.includes(currentUser.id)) { alert('この予約は編集できません'); hideLoading(); return; }
+
+    _editBookingId = reservationId;
+    _editBookingData = d;
+
+    // 情報表示
+    const date = new Date(d.date + 'T00:00:00');
+    document.getElementById('modal-edit-booking-info').textContent =
+      `📍 ${d.roomName}　${date.getMonth()+1}/${date.getDate()}(${DAY_NAMES[date.getDay()]})`;
+
+    // 時刻セレクト
+    function buildEditTimeOptions(selId, defaultVal) {
+      const sel = document.getElementById(selId);
+      sel.innerHTML = '';
+      for (let h = 8; h <= 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          if (h === 24 && m > 0) break;
+          const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          const opt = document.createElement('option');
+          opt.value = val; opt.textContent = val;
+          if (val === defaultVal) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      }
+    }
+    buildEditTimeOptions('edit-start-time', d.startTime || '09:00');
+    buildEditTimeOptions('edit-end-time', d.endTime || '10:00');
+
+    // 楽器セレクト
+    const instruments = await fetchInstruments();
+    const instrSel = document.getElementById('edit-instrument');
+    instrSel.innerHTML = '<option value="">楽器を選択してください</option>';
+    instruments.forEach(i => {
+      const o = document.createElement('option');
+      o.value = i.name; o.textContent = i.name;
+      if (i.name === d.instrument) o.selected = true;
+      instrSel.appendChild(o);
+    });
+
+    // 楽器フィルターセレクト
+    const filterSel = document.getElementById('edit-instrument-filter');
+    filterSel.innerHTML = '<option value="">全楽器を表示</option>';
+    instruments.forEach(i => {
+      const o = document.createElement('option');
+      o.value = i.name; o.textContent = i.name;
+      filterSel.appendChild(o);
+    });
+    filterSel.onchange = () => renderEditStudentList(filterSel.value);
+
+    document.getElementById('edit-teacher').value = d.teacher || '';
+
+    // 生徒選択（既存の選択を復元）
+    window._editSelectedStudents = (d.studentIds || []).map((id, idx) => ({
+      id, name: (d.studentNames || [])[idx] || id
+    }));
+
+    // 生徒一覧
+    if (!window._allStudentDocs) {
+      const snap = await studentsRef().get();
+      const docs = [];
+      snap.forEach(doc => docs.push({ id: doc.id, data: doc.data() }));
+      docs.sort((a, b) => {
+        const ag = parseInt(a.data.grade), bg = parseInt(b.data.grade);
+        if (ag !== bg) return ag - bg;
+        return a.data.number - b.data.number;
+      });
+      window._allStudentDocs = docs;
+    }
+    renderEditStudentList('');
+    updateEditSelectedStudentsLabel();
+
+    hideError('edit-booking-error');
+    openModal('modal-edit-booking');
+  } catch(e) {
+    alert('読み込みに失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderEditStudentList(filterInstrument) {
+  const listDiv = document.getElementById('edit-student-list');
+  listDiv.innerHTML = '';
+  const docs = window._allStudentDocs || [];
+  const filtered = filterInstrument ? docs.filter(s => (s.data.instrument || '') === filterInstrument) : docs;
+  if (filtered.length === 0) {
+    listDiv.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px;">該当する生徒がいません</div>';
+    return;
+  }
+  filtered.forEach(({ id, data: d }) => {
+    const isSelected = window._editSelectedStudents.some(s => s.id === id);
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+    row.innerHTML = `
+      <input type="checkbox" value="${id}" ${isSelected ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--primary);">
+      <span style="font-size:14px;flex:1;">${d.grade === '他科' ? '他科' : d.grade+'年'} ${d.number}番 ${d.name}</span>
+      ${d.instrument ? `<span style="font-size:11px;color:var(--text-muted);background:#f0f2f5;padding:2px 7px;border-radius:10px;">${d.instrument}</span>` : ''}
+    `;
+    const cb = row.querySelector('input');
+    cb.onchange = () => {
+      if (cb.checked) {
+        window._editSelectedStudents.push({ id, name: d.name });
+      } else {
+        window._editSelectedStudents = window._editSelectedStudents.filter(s => s.id !== id);
+      }
+      updateEditSelectedStudentsLabel();
+    };
+    listDiv.appendChild(row);
+  });
+}
+
+function updateEditSelectedStudentsLabel() {
+  const el = document.getElementById('edit-selected-students-label');
+  if (!window._editSelectedStudents || window._editSelectedStudents.length === 0) {
+    el.textContent = '生徒を選択してください';
+  } else {
+    el.textContent = '選択中: ' + window._editSelectedStudents.map(s => s.name).join('、');
+  }
+}
+
+async function handleEditBookingConfirm() {
+  if (!_editBookingId || !_editBookingData) return;
+  const startTime = document.getElementById('edit-start-time').value;
+  const endTime = document.getElementById('edit-end-time').value;
+  const instrument = document.getElementById('edit-instrument').value;
+  const teacher = document.getElementById('edit-teacher').value.trim();
+  const selectedStudents = window._editSelectedStudents || [];
+  hideError('edit-booking-error');
+
+  if (selectedStudents.length === 0) { showError('edit-booking-error', '生徒を1名以上選択してください'); return; }
+  if (startTime >= endTime) { showError('edit-booking-error', '終了時刻は開始時刻より後にしてください'); return; }
+
+  showLoading();
+  try {
+    // 重複チェック（自分の予約は除いて2件まで）
+    const snap = await reservationsRef()
+      .where('roomId', '==', _editBookingData.roomId)
+      .where('date', '==', _editBookingData.date)
+      .get();
+    let countOverlap = 0;
+    for (const doc of snap.docs) {
+      if (doc.id === _editBookingId) continue; // 自分自身は除外
+      const d = doc.data();
+      let ds = d.startTime, de = d.endTime;
+      if (!ds && d.startPeriod) { ds = LEGACY_PERIOD_TIMES[d.startPeriod]?.s || '08:45'; de = LEGACY_PERIOD_TIMES[d.endPeriod]?.e || '15:20'; }
+      if (!ds) continue;
+      if (!(endTime <= ds || startTime >= de)) countOverlap++;
+    }
+    if (countOverlap >= 2) { showError('edit-booking-error', 'この時間帯はすでに2グループ予約が入っています'); hideLoading(); return; }
+
+    await reservationsRef().doc(_editBookingId).update({
+      startTime, endTime, instrument, teacher,
+      startPeriod: 1, endPeriod: 1,
+      studentIds: selectedStudents.map(s => s.id),
+      studentNames: selectedStudents.map(s => s.name),
+      studentId: selectedStudents[0].id,
+      studentName: selectedStudents.map(s => s.name).join('・'),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('modal-edit-booking');
+    loadMyReservations();
+    if (selectedRoomId === _editBookingData.roomId) renderWeeklyCalendar();
+    _editBookingId = null;
+    _editBookingData = null;
+  } catch(e) {
+    showError('edit-booking-error', '更新に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 予約編集（管理者用） =====
+let _editAdminResId = null;
+
+async function openEditAdminReservationModal(reservationId, data) {
+  _editAdminResId = reservationId;
+
+  // レッスン室セレクト
+  await populateAdminRoomSelect();
+  const editRoomSel = document.getElementById('edit-admin-res-room');
+  const adminRoomSel = document.getElementById('admin-res-room');
+  editRoomSel.innerHTML = adminRoomSel.innerHTML;
+  editRoomSel.value = data.roomId;
+
+  document.getElementById('edit-admin-res-date').value = data.date;
+
+  function buildAdminEditTimeOptions(selId, defaultVal) {
+    const sel = document.getElementById(selId);
+    sel.innerHTML = '';
+    for (let h = 8; h <= 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === 24 && m > 0) break;
+        const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val;
+        if (val === defaultVal) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+  }
+  buildAdminEditTimeOptions('edit-admin-res-start', data.startTime || '09:00');
+  buildAdminEditTimeOptions('edit-admin-res-end', data.endTime || '10:00');
+
+  // 楽器
+  const instruments = await fetchInstruments();
+  const instrSel = document.getElementById('edit-admin-res-instrument');
+  instrSel.innerHTML = '<option value="">楽器を選択（任意）</option>';
+  instruments.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i.name; o.textContent = i.name;
+    if (i.name === data.instrument) o.selected = true;
+    instrSel.appendChild(o);
+  });
+
+  document.getElementById('edit-admin-res-teacher').value = data.teacher || '';
+  document.getElementById('edit-admin-res-student').value = (data.studentNames || [data.studentName]).join('・') || '';
+
+  hideError('edit-admin-res-error');
+  openModal('modal-edit-admin-reservation');
+}
+
+async function handleEditAdminReservationConfirm() {
+  if (!_editAdminResId) return;
+  const roomId = document.getElementById('edit-admin-res-room').value;
+  const dateStr = document.getElementById('edit-admin-res-date').value;
+  const startTime = document.getElementById('edit-admin-res-start').value;
+  const endTime = document.getElementById('edit-admin-res-end').value;
+  const instrument = document.getElementById('edit-admin-res-instrument').value;
+  const teacher = document.getElementById('edit-admin-res-teacher').value.trim();
+  const studentName = document.getElementById('edit-admin-res-student').value.trim() || '管理者';
+  hideError('edit-admin-res-error');
+
+  if (!roomId) { showError('edit-admin-res-error', 'レッスン室を選択してください'); return; }
+  if (!dateStr) { showError('edit-admin-res-error', '日付を入力してください'); return; }
+  if (startTime >= endTime) { showError('edit-admin-res-error', '終了時刻は開始時刻より後にしてください'); return; }
+
+  showLoading();
+  try {
+    // 重複チェック（自分は除く）
+    const snap = await reservationsRef().where('roomId', '==', roomId).where('date', '==', dateStr).get();
+    let countOverlap = 0;
+    for (const doc of snap.docs) {
+      if (doc.id === _editAdminResId) continue;
+      const d = doc.data();
+      let ds = d.startTime, de = d.endTime;
+      if (!ds && d.startPeriod) { ds = LEGACY_PERIOD_TIMES[d.startPeriod]?.s || '08:45'; de = LEGACY_PERIOD_TIMES[d.endPeriod]?.e || '15:20'; }
+      if (!ds) continue;
+      if (!(endTime <= ds || startTime >= de)) countOverlap++;
+    }
+    if (countOverlap >= 2) { showError('edit-admin-res-error', 'この時間帯はすでに2グループ予約が入っています'); hideLoading(); return; }
+
+    const roomSnap = await roomsRef().doc(roomId).get();
+    await reservationsRef().doc(_editAdminResId).update({
+      roomId, roomName: roomSnap.data()?.name || '',
+      date: dateStr, startTime, endTime, instrument, teacher,
+      startPeriod: 1, endPeriod: 1,
+      studentName, studentNames: [studentName],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('modal-edit-admin-reservation');
+    loadAdminReservations();
+    _editAdminResId = null;
+  } catch(e) {
+    showError('edit-admin-res-error', '更新に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===== 毎週定期予約 =====
+async function openRecurringModal() {
+  await populateAdminRoomSelect();
+  // rec-roomにroom選択肢をコピー
+  const adminRoomSel = document.getElementById('admin-res-room');
+  const recRoomSel = document.getElementById('rec-room');
+  recRoomSel.innerHTML = adminRoomSel.innerHTML;
+
+  // 時刻セレクト
+  function buildRecTimeOptions(selId, defaultVal) {
+    const sel = document.getElementById(selId);
+    sel.innerHTML = '';
+    for (let h = 8; h <= 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === 24 && m > 0) break;
+        const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val;
+        if (val === defaultVal) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+  }
+  buildRecTimeOptions('rec-start', '09:00');
+  buildRecTimeOptions('rec-end', '10:00');
+
+  // 楽器
+  const instruments = await fetchInstruments();
+  const instrSel = document.getElementById('rec-instrument');
+  instrSel.innerHTML = '<option value="">楽器を選択（任意）</option>';
+  instruments.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i.name; o.textContent = i.name;
+    instrSel.appendChild(o);
+  });
+
+  // 日付デフォルト（今日〜1ヶ月後）
+  const today = new Date();
+  const oneMonthLater = new Date(today);
+  oneMonthLater.setMonth(today.getMonth() + 1);
+  document.getElementById('rec-from').value = formatDate(today);
+  document.getElementById('rec-to').value = formatDate(oneMonthLater);
+  document.getElementById('rec-student').value = '';
+  document.getElementById('rec-teacher').value = '';
+  document.getElementById('rec-preview').style.display = 'none';
+  document.getElementById('btn-rec-confirm').style.display = 'none';
+  document.getElementById('btn-rec-preview').style.display = '';
+  hideError('rec-error');
+
+  // 曜日チェックボックスをリセット
+  document.querySelectorAll('#rec-days input[type=checkbox]').forEach(cb => cb.checked = false);
+
+  openModal('modal-recurring-reservation');
+}
+
+// 定期予約の対象日付リストを生成
+function generateRecurringDates(fromStr, toStr, dayOfWeeks) {
+  const dates = [];
+  const from = new Date(fromStr + 'T00:00:00');
+  const to = new Date(toStr + 'T00:00:00');
+  const cur = new Date(from);
+  while (cur <= to) {
+    if (dayOfWeeks.includes(cur.getDay())) {
+      dates.push(formatDate(cur));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+let _recurringDates = [];
+
+async function handleRecurringPreview() {
+  hideError('rec-error');
+  const roomId = document.getElementById('rec-room').value;
+  const startTime = document.getElementById('rec-start').value;
+  const endTime = document.getElementById('rec-end').value;
+  const fromStr = document.getElementById('rec-from').value;
+  const toStr = document.getElementById('rec-to').value;
+  const dayOfWeeks = Array.from(document.querySelectorAll('#rec-days input[type=checkbox]:checked')).map(cb => parseInt(cb.value));
+
+  if (!roomId) { showError('rec-error', 'レッスン室を選択してください'); return; }
+  if (dayOfWeeks.length === 0) { showError('rec-error', '曜日を1つ以上選択してください'); return; }
+  if (!fromStr || !toStr) { showError('rec-error', '開始日と終了日を入力してください'); return; }
+  if (fromStr > toStr) { showError('rec-error', '終了日は開始日より後にしてください'); return; }
+  if (startTime >= endTime) { showError('rec-error', '終了時刻は開始時刻より後にしてください'); return; }
+
+  _recurringDates = generateRecurringDates(fromStr, toStr, dayOfWeeks);
+  if (_recurringDates.length === 0) {
+    showError('rec-error', '指定した期間・曜日に該当する日がありません');
+    return;
+  }
+  if (_recurringDates.length > 60) {
+    showError('rec-error', `対象日が${_recurringDates.length}件と多すぎます。期間を短くしてください（最大60件）`);
+    return;
+  }
+
+  const dayNames = ['日','月','火','水','木','金','土'];
+  const selectedDayNames = dayOfWeeks.map(d => dayNames[d]).join('・');
+  const previewEl = document.getElementById('rec-preview');
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = `
+    <strong>予約内容の確認</strong><br>
+    曜日：${selectedDayNames}曜日　時間：${startTime}〜${endTime}<br>
+    期間：${fromStr} 〜 ${toStr}<br>
+    対象日数：<strong>${_recurringDates.length}件</strong>（${_recurringDates[0]}、${_recurringDates[1] || ''}…${_recurringDates[_recurringDates.length-1]}）
+  `;
+  document.getElementById('btn-rec-confirm').style.display = '';
+}
+
+async function handleRecurringConfirm() {
+  hideError('rec-error');
+  const roomId = document.getElementById('rec-room').value;
+  const startTime = document.getElementById('rec-start').value;
+  const endTime = document.getElementById('rec-end').value;
+  const instrument = document.getElementById('rec-instrument').value;
+  const teacher = document.getElementById('rec-teacher').value.trim();
+  const studentName = document.getElementById('rec-student').value.trim() || '管理者';
+
+  if (!_recurringDates || _recurringDates.length === 0) {
+    showError('rec-error', '先に「確認する」を押してください');
+    return;
+  }
+
+  showLoading();
+  try {
+    const roomSnap = await roomsRef().doc(roomId).get();
+    const roomName = roomSnap.data()?.name || '';
+
+    // Firestoreのバッチは500件まで
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < _recurringDates.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = _recurringDates.slice(i, i + BATCH_SIZE);
+      chunk.forEach(dateStr => {
+        const ref = reservationsRef().doc();
+        batch.set(ref, {
+          roomId, roomName,
+          date: dateStr,
+          startPeriod: 1, endPeriod: 1,
+          startTime, endTime,
+          instrument, teacher,
+          studentId: 'admin', studentName,
+          studentNames: [studentName], studentIds: ['admin'],
+          studentGrade: '管理者',
+          isRecurring: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+
+    closeModal('modal-recurring-reservation');
+    const registeredCount = _recurringDates.length;
+    const roomName2 = document.getElementById('rec-room').options[document.getElementById('rec-room').selectedIndex]?.text || '';
+    _recurringDates = [];
+    loadAdminReservations();
+    alert(`${roomName2} に ${registeredCount}件の定期予約を登録しました`);
+  } catch(e) {
+    showError('rec-error', '登録に失敗しました: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+
+const monStyle=document.createElement('style');
+monStyle.textContent='@keyframes monPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}50%{box-shadow:0 0 8px 2px rgba(239,68,68,.3)}}';
+document.head.appendChild(monStyle);
+
+</script>
+</body>
+</html>
