@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🎺 吹奏楽部 出欠管理</title>
+<title>吹奏楽部 出欠管理v1</title>
 <style>
   :root {
     --mint:       #3ecfb2;
@@ -2008,7 +2008,8 @@ document.getElementById('att-csv-file').addEventListener('change', async functio
   for (const file of files) {
     try {
       const text = await readCsvAuto(file);
-      const lines = text.split(/?
+      const lines = text.split(/
+?
 /).filter(l => l.trim());
       if (lines.length < 2) { errors.push(`${file.name}: データなし`); continue; }
 
