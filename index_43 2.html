@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎺 吹奏楽部 出欠管理</title>
+<style>
+  :root {
+    --mint:       #3ecfb2;
+    --mint-light: #d4f5ee;
+    --mint-mid:   #7de0cc;
+    --sky:        #e8f8f5;
+    --navy:       #1a3a4c;
+    --slate:      #4a6b7a;
+    --white:      #ffffff;
+    --gray-100:   #f4f8f9;
+    --gray-200:   #dce8ed;
+    --gray-400:   #9bb0bb;
+    --danger:     #f25c69;
+    --warn:       #f8a435;
+    --success:    #2ecc8e;
+    --info:       #4fa3d4;
+    --excused:    #9b6fd1;
+    --radius:     14px;
+    --shadow:     0 4px 20px rgba(30,80,100,.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Meiryo', sans-serif;
+    background: linear-gradient(155deg, #e8f8f5 0%, #d0f0e8 40%, #c8eaf7 100%);
+    min-height: 100vh;
+    color: var(--navy);
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    background: linear-gradient(100deg, #1a3a4c 0%, #215068 60%, #1e6a7a 100%);
+    color: #fff;
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 3px 16px rgba(0,0,0,.25);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header .logo { font-size: 2rem; line-height: 1; }
+  header .title-block h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .03em; }
+  header .title-block p  { font-size: .75rem; color: var(--mint-mid); margin-top: 2px; }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    background: var(--navy);
+    padding: 0 16px;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 12px 18px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,.55);
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  .tab-btn.active {
+    color: var(--mint);
+    border-bottom-color: var(--mint);
+  }
+
+  /* ===== MAIN ===== */
+  main { max-width: 700px; margin: 0 auto; padding: 16px 12px 24px; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ===== CARD ===== */
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--slate);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 1.25rem; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: transform .13s, opacity .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary   { background: var(--mint);    color: #fff; }
+  .btn-secondary { background: var(--gray-200); color: var(--slate); }
+  .btn-danger    { background: var(--danger);   color: #fff; }
+  .btn-sm { padding: 8px 14px; font-size: .85rem; border-radius: 8px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ===== FILE INPUT ===== */
+  .file-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border: 2px dashed var(--mint);
+    border-radius: var(--radius);
+    cursor: pointer;
+    color: var(--slate);
+    font-size: .95rem;
+    background: var(--sky);
+    transition: background .2s;
+  }
+  .file-label:hover { background: var(--mint-light); }
+  .file-label input { display: none; }
+
+  /* ===== DATE PICKER ===== */
+  .date-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .date-bar input[type="date"] {
+    flex: 1;
+    min-width: 160px;
+    padding: 12px 14px;
+    font-size: 1.1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 10px;
+    background: var(--gray-100);
+    color: var(--navy);
+    font-family: inherit;
+  }
+  .date-bar input[type="date"]:focus {
+    outline: none;
+    border-color: var(--mint);
+  }
+
+  /* ===== SORT BAR ===== */
+  .sort-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .sort-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid var(--gray-200);
+    background: var(--gray-100);
+    color: var(--slate);
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sort-btn.active {
+    background: var(--mint);
+    border-color: var(--mint);
+    color: #fff;
+  }
+
+  /* ===== MEMBER ROWS ===== */
+  .member-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .member-row {
+    background: var(--gray-100);
+    border-radius: 12px;
+    padding: 14px 14px 14px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    border-left: 4px solid var(--gray-200);
+    transition: border-color .2s;
+  }
+  .member-row.status-出席  { border-left-color: var(--success); }
+  .member-row.status-欠席  { border-left-color: var(--danger);  }
+  .member-row.status-遅刻  { border-left-color: var(--warn);    }
+  .member-row.status-早退  { border-left-color: var(--info);    }
+  .member-row.status-公欠  { border-left-color: var(--excused); }
+
+  .member-info { flex: 1; min-width: 120px; }
+  .member-name { font-weight: 700; font-size: 1.05rem; color: var(--navy); }
+  .member-sub  { font-size: .78rem; color: var(--gray-400); margin-top: 2px; }
+
+  .status-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .status-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 2px solid var(--gray-200);
+    background: #fff;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all .15s;
+    min-width: 54px;
+    text-align: center;
+  }
+  .status-btn:active { transform: scale(.94); }
+  .status-btn[data-s="出席"].selected { background: var(--success); border-color: var(--success); color: #fff; }
+  .status-btn[data-s="欠席"].selected { background: var(--danger);  border-color: var(--danger);  color: #fff; }
+  .status-btn[data-s="遅刻"].selected { background: var(--warn);    border-color: var(--warn);    color: #fff; }
+  .status-btn[data-s="早退"].selected { background: var(--info);    border-color: var(--info);    color: #fff; }
+  .status-btn[data-s="公欠"].selected { background: var(--excused); border-color: var(--excused); color: #fff; }
+
+  /* ===== INSTRUMENT GROUP HEADER ===== */
+  .group-header {
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--mint);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 4px 0 4px 4px;
+    border-bottom: 1px solid var(--mint-light);
+    margin-top: 6px;
+  }
+
+
+
+  /* ===== RANKING ===== */
+  .rank-table { width: 100%; border-collapse: collapse; }
+  .rank-table th {
+    text-align: left;
+    font-size: .8rem;
+    color: var(--gray-400);
+    font-weight: 600;
+    padding: 6px 10px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .rank-table td {
+    padding: 12px 10px;
+    font-size: .95rem;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+  }
+  .rank-table tr:last-child td { border-bottom: none; }
+  .rank-num {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-400);
+    min-width: 32px;
+    display: inline-block;
+    text-align: center;
+  }
+  .rank-num.top1 { color: #e5a000; }
+  .rank-num.top2 { color: #888; }
+  .rank-num.top3 { color: #8b5e3c; }
+
+  .rate-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rate-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .rate-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--mint), var(--danger));
+    transition: width .5s ease;
+  }
+  .rate-pct {
+    font-weight: 700;
+    font-size: .9rem;
+    min-width: 40px;
+    text-align: right;
+    color: var(--navy);
+  }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 40px;
+    font-size: .95rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s, transform .3s;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== LOADING ===== */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 30px;
+    color: var(--gray-400);
+    font-size: .95rem;
+  }
+  .spinner {
+    width: 22px; height: 22px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--mint);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== EMPTY STATE ===== */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-400);
+  }
+  .empty .emoji { font-size: 2.5rem; margin-bottom: 10px; }
+  .empty p { font-size: .95rem; line-height: 1.6; }
+
+  /* ===== LOGIN ===== */
+  #login-screen {
+    position: fixed; inset: 0;
+    background: linear-gradient(155deg, #1a3a4c 0%, #215068 55%, #1e6a7a 100%);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    padding: 24px;
+  }
+  #login-screen.hidden { display: none; }
+  .login-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 32px 36px;
+    width: 100%; max-width: 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    text-align: center;
+  }
+  .login-box h2 {
+    font-size: 1.3rem; font-weight: 800;
+    color: var(--navy); margin-bottom: 6px;
+  }
+  .login-box p { font-size: .85rem; color: var(--slate); margin-bottom: 28px; }
+  .login-box input[type="password"] {
+    width: 100%; padding: 14px 16px;
+    border: 2px solid var(--gray-200); border-radius: 10px;
+    font-size: 1.1rem; font-family: inherit;
+    text-align: center; letter-spacing: .15em;
+    margin-bottom: 14px;
+    transition: border-color .2s;
+  }
+  .login-box input[type="password"]:focus {
+    outline: none; border-color: var(--mint);
+  }
+  .login-box input[type="password"].error { border-color: var(--danger); }
+  .login-err {
+    font-size: .85rem; color: var(--danger);
+    margin-bottom: 12px; min-height: 20px;
+  }
+  .login-box .btn { width: 100%; padding: 14px; font-size: 1.05rem; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500; padding: 20px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: #fff; border-radius: 18px;
+    padding: 28px 24px; width: 100%; max-width: 420px;
+    box-shadow: 0 16px 50px rgba(0,0,0,.25);
+    transform: translateY(20px);
+    transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h3 { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-bottom: 18px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label {
+    display: block; font-size: .82rem; font-weight: 600;
+    color: var(--slate); margin-bottom: 5px;
+  }
+  .modal-field input {
+    width: 100%; padding: 12px 14px;
+    border: 2px solid var(--gray-200); border-radius: 10px;
+    font-size: 1rem; font-family: inherit;
+    transition: border-color .2s;
+  }
+  .modal-field input:focus { outline: none; border-color: var(--mint); }
+  .modal-field select {
+    width: 100%; padding: 12px 14px;
+    border: 2px solid var(--gray-200); border-radius: 10px;
+    font-size: 1rem; font-family: inherit;
+    background: #fff; color: var(--navy);
+    transition: border-color .2s;
+  }
+  .modal-field select:focus { outline: none; border-color: var(--mint); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-btns .btn { flex: 1; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 480px) {
+    header .title-block h1 { font-size: 1.1rem; }
+    .status-btn { padding: 9px 10px; font-size: .8rem; min-width: 48px; }
+  }
+
+  /* ===== AVG FILTER ===== */
+  .avg-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .avg-filter-label {
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--slate);
+    white-space: nowrap;
+    margin-right: 2px;
+  }
+  .avg-filter-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 2px solid var(--gray-200);
+    background: #fff;
+    color: var(--slate);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .avg-filter-item input[type="checkbox"] { display: none; }
+  .avg-filter-item.on-出席 { background: var(--success); border-color: var(--success); color: #fff; }
+  .avg-filter-item.on-欠席 { background: var(--danger);  border-color: var(--danger);  color: #fff; }
+  .avg-filter-item.on-遅刻 { background: var(--warn);    border-color: var(--warn);    color: #fff; }
+  .avg-filter-item.on-早退 { background: var(--info);    border-color: var(--info);    color: #fff; }
+  .avg-filter-item.on-公欠 { background: var(--excused); border-color: var(--excused); color: #fff; }
+
+  /* ===== STAT SUMMARY ===== */
+  .stat-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 10px;
+  }
+  .stat-summary-box {
+    background: var(--gray-100);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat-summary-box .label { font-size: .75rem; color: var(--gray-400); margin-bottom: 2px; }
+  .stat-summary-box .value { font-size: 1.2rem; font-weight: 800; }
+
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>🎼 吹奏楽部 出欠管理</h2>
+    <p>パスワードを入力してください</p>
+    <input type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password" />
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-primary" id="btn-login">ログイン</button>
+  </div>
+</div>
+
+<!-- ===== 部員追加／編集 モーダル ===== -->
+<div class="modal-overlay" id="member-modal">
+  <div class="modal">
+    <h3 id="modal-title">部員を追加</h3>
+    <div class="modal-field">
+      <label>出席番号</label>
+      <input type="text" id="modal-number" placeholder="例：12" inputmode="numeric" />
+    </div>
+    <div class="modal-field">
+      <label>名前</label>
+      <input type="text" id="modal-name" placeholder="例：山田 太郎" />
+    </div>
+    <div class="modal-field">
+      <label>担当楽器</label>
+      <select id="modal-instrument"></select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="modal-cancel">キャンセル</button>
+      <button class="btn btn-primary"   id="modal-save">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 楽器追加／編集 モーダル ===== -->
+<div class="modal-overlay" id="instrument-modal">
+  <div class="modal">
+    <h3 id="instrument-modal-title">楽器を追加</h3>
+    <div class="modal-field">
+      <label>楽器名</label>
+      <input type="text" id="instrument-modal-name" placeholder="例：トランペット" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="instrument-modal-cancel">キャンセル</button>
+      <button class="btn btn-primary"   id="instrument-modal-save">保存する</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="title-block">
+    <h1>吹奏楽部 出欠管理</h1>
+    <p>Wind Band Attendance System</p>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="attendance">📋 出欠入力</button>
+  <button class="tab-btn"        data-tab="ranking">📊 欠席率</button>
+  <button class="tab-btn"        data-tab="rank-late">🐢 遅刻率</button>
+  <button class="tab-btn"        data-tab="rank-early">🏃 早退率</button>
+  <button class="tab-btn"        data-tab="stats">📈 統合統計</button>
+  <button class="tab-btn"        data-tab="instruments">🎻 楽器管理</button>
+  <button class="tab-btn"        data-tab="import">📂 名簿インポート</button>
+  <button class="tab-btn"        data-tab="io">📤 出欠データ</button>
+</div>
+
+<main>
+  <!-- ===== 出欠入力パネル ===== -->
+  <div id="panel-attendance" class="panel active">
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span>日付を選んで出欠を記録</div>
+      <div class="date-bar">
+        <input type="date" id="date-picker" />
+        <button class="btn btn-secondary btn-sm" id="btn-today">今日</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="sort-btn active" id="btn-session-afternoon" data-session="afternoon">☀️ 午後練</button>
+        <button class="sort-btn"       id="btn-session-morning"   data-session="morning">🌅 朝練</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🎵</span>部員一覧</div>
+      <div class="sort-bar">
+        <button class="sort-btn active" data-sort="number">出席番号順</button>
+        <button class="sort-btn"       data-sort="instrument">楽器順</button>
+      </div>
+      <div id="member-list-wrap">
+        <div class="loading"><div class="spinner"></div>読み込み中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 欠席率ランキングパネル ===== -->
+  <div id="panel-ranking" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span>欠席率ランキング（高い順）</div>
+      <div id="ranking-wrap">
+        <div class="loading"><div class="spinner"></div>集計中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 遅刻率ランキングパネル ===== -->
+  <div id="panel-rank-late" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">🐢</span>遅刻率ランキング（高い順）</div>
+      <div id="rank-late-wrap">
+        <div class="loading"><div class="spinner"></div>集計中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 早退率ランキングパネル ===== -->
+  <div id="panel-rank-early" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">🏃</span>早退率ランキング（高い順）</div>
+      <div id="rank-early-wrap">
+        <div class="loading"><div class="spinner"></div>集計中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 統合統計パネル ===== -->
+  <div id="panel-stats" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span>全体統計</div>
+      <div id="stats-summary">
+        <div class="loading"><div class="spinner"></div>集計中…</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span>部員別統計</div>
+      <div class="avg-filter" id="avg-filter">
+        <span class="avg-filter-label">個別平均に含める：</span>
+        <label class="avg-filter-item on-出席" data-key="出席"><input type="checkbox" checked />出席率</label>
+        <label class="avg-filter-item on-欠席" data-key="欠席"><input type="checkbox" checked />欠席率</label>
+        <label class="avg-filter-item on-遅刻" data-key="遅刻"><input type="checkbox" checked />遅刻率</label>
+        <label class="avg-filter-item on-早退" data-key="早退"><input type="checkbox" checked />早退率</label>
+        <label class="avg-filter-item on-公欠" data-key="公欠"><input type="checkbox" checked />公欠率</label>
+      </div>
+      <div class="sort-bar" id="stats-sort-bar">
+        <button class="sort-btn" data-stat-sort="name">名前順</button>
+        <button class="sort-btn" data-stat-sort="欠席">欠席率順</button>
+        <button class="sort-btn" data-stat-sort="遅刻">遅刻率順</button>
+        <button class="sort-btn" data-stat-sort="早退">早退率順</button>
+        <button class="sort-btn" data-stat-sort="公欠">公欠率順</button>
+        <button class="sort-btn" data-stat-sort="出席">出席率順</button>
+        <button class="sort-btn active" data-stat-sort="個別平均">個別平均順</button>
+      </div>
+      <div id="stats-table-wrap">
+        <div class="loading"><div class="spinner"></div>集計中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 楽器管理パネル ===== -->
+  <div id="panel-instruments" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">➕</span>楽器を追加</div>
+      <button class="btn btn-primary" id="btn-add-instrument" style="width:100%;">＋ 新しい楽器を追加する</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">🎻</span>登録されている楽器</div>
+      <div id="instrument-list-wrap">
+        <div class="loading"><div class="spinner"></div>読み込み中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 名簿インポートパネル ===== -->
+  <div id="panel-import" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="icon">➕</span>部員を手入力で追加</div>
+      <button class="btn btn-primary" id="btn-add-member" style="width:100%;">＋ 新しい部員を追加する</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">📂</span>CSVファイルから一括読み込む</div>
+      <p style="font-size:.88rem;color:var(--slate);margin-bottom:14px;line-height:1.6;">
+        列構成：<strong>出席番号, 名前, 担当楽器</strong>（1行目は見出し）<br>
+        スプレッドシートからCSVとして書き出してください。
+      </p>
+      <label class="file-label">
+        <span style="font-size:1.5rem;">📄</span>
+        <span>CSVファイルを選択する</span>
+        <input type="file" id="csv-file" accept=".csv,text/csv" />
+      </label>
+      <div id="csv-preview" style="margin-top:14px;"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-import" disabled>Firestoreに保存する</button>
+      </div>
+    </div>
+    <div class="card" id="member-list-card">
+      <div class="card-title"><span class="icon">👥</span>現在登録されている部員</div>
+      <div id="registered-members">
+        <div class="loading"><div class="spinner"></div>読み込み中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 出欠データ入出力パネル ===== -->
+  <div id="panel-io" class="panel">
+
+    <!-- エクスポート -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📤</span>出欠データをCSVで出力</div>
+      <p style="font-size:.88rem;color:var(--slate);margin-bottom:14px;line-height:1.6;">
+        期間を指定してFirestoreに保存されている出欠をCSVファイルに書き出します。
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <label style="font-size:.88rem;font-weight:600;">開始日</label>
+        <input type="date" id="export-from" style="padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.88rem;" />
+        <label style="font-size:.88rem;font-weight:600;">終了日</label>
+        <input type="date" id="export-to"   style="padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.88rem;" />
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-export-csv">⬇️ CSVをダウンロード</button>
+        <span id="export-status" style="font-size:.85rem;color:var(--slate);align-self:center;"></span>
+      </div>
+    </div>
+
+    <!-- 出欠一括インポート -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📥</span>出欠CSVを一括読み込み</div>
+      <p style="font-size:.88rem;color:var(--slate);margin-bottom:6px;line-height:1.6;">
+        このアプリでエクスポートしたCSVファイルを複数まとめて読み込み、Firestoreに反映します。<br>
+        <strong>複数ファイルを一度に選択できます。</strong>
+      </p>
+      <p style="font-size:.85rem;color:var(--slate);margin-bottom:10px;line-height:1.6;">
+        <strong>①このアプリのエクスポートCSV</strong>（日付・セッション・出欠 列あり）はそのまま読み込めます。<br>
+        <strong>②旧形式CSV</strong>（月・番号・氏名・1日・2日… ○×形式）は下の年とセッションを指定してください。
+      </p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:var(--gray-100);border-radius:10px;">
+        <span style="font-size:.85rem;font-weight:600;">旧形式用：</span>
+        <label style="font-size:.85rem;">年
+          <input type="number" id="legacy-year" value="" placeholder="例：2024"
+            style="width:90px;margin-left:6px;padding:5px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.85rem;" />
+        </label>
+        <label style="font-size:.85rem;">セッション
+          <select id="legacy-session" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:.85rem;">
+            <option value="afternoon">午後練</option>
+            <option value="morning">朝練</option>
+          </select>
+        </label>
+      </div>
+      <label class="file-label">
+        <span style="font-size:1.5rem;">📂</span>
+        <span>出欠CSVを選択する（複数可）</span>
+        <input type="file" id="att-csv-file" accept=".csv,text/csv" multiple />
+      </label>
+      <div id="att-csv-preview" style="margin-top:14px;font-size:.85rem;color:var(--slate);"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-att-import" disabled>Firestoreに一括保存する</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===== 記録開始確認モーダル ===== -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:2rem;margin-bottom:10px;">📅</div>
+    <h3 id="confirm-modal-title" style="margin-bottom:10px;"></h3>
+    <p id="confirm-modal-body" style="font-size:.9rem;color:var(--slate);margin-bottom:20px;line-height:1.6;"></p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="confirm-cancel">キャンセル</button>
+      <button class="btn btn-primary"   id="confirm-ok">✅ 記録を開始する</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div id="toast"></div>
+
+<script type="module">
+// =============================================
+// Firebase 初期化
+// =============================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc,
+  collection, getDocs, writeBatch, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyAcEjNyngjasdoztwITyakYqQHXWwd-dGU",
+  authDomain:        "syukketu-f5fae.firebaseapp.com",
+  projectId:         "syukketu-f5fae",
+  storageBucket:     "syukketu-f5fae.firebasestorage.app",
+  messagingSenderId: "645948167515",
+  appId:             "1:645948167515:web:28c9c0d051dbc43fd2367e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const PASS = 'ongakudo';
+
+// =============================================
+// ユーティリティ
+// =============================================
+function showToast(msg, duration = 2400) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// =============================================
+// 状態
+// =============================================
+let members     = [];   // [{number, name, instrument}]
+let attendance  = {};   // {memberId: status}
+let currentDate = todayStr();
+let currentSession = 'afternoon'; // 'afternoon' | 'morning'
+let sortMode    = 'number';
+let csvRows     = [];   // インポート用
+let modalMode   = 'add'; // 'add' | 'edit'
+let editingId   = null;
+
+let instruments         = [];   // [{id, name}]
+let instrumentModalMode = 'add'; // 'add' | 'edit'
+let editingInstrumentId = null;
+let statsSortMode       = '個別平均'; // 統合統計タブの並び替え基準
+let statsCache          = null;  // 統合統計タブの計算結果キャッシュ
+let statsOverall        = null;  // 統合統計タブの全体平均キャッシュ
+let avgFilter = { 出席: true, 欠席: true, 遅刻: true, 早退: true, 公欠: true };
+
+// =============================================
+// ログイン
+// =============================================
+const LOGIN_PASS = 'ongakudo';
+const loginScreen = document.getElementById('login-screen');
+const loginPw     = document.getElementById('login-pw');
+const loginErr    = document.getElementById('login-err');
+
+function tryLogin() {
+  if (loginPw.value === LOGIN_PASS) {
+    localStorage.setItem('ongakudo_authed', '1');
+    loginScreen.classList.add('hidden');
+    init();
+  } else {
+    loginErr.textContent = 'パスワードが違います';
+    loginPw.classList.add('error');
+    loginPw.value = '';
+    loginPw.focus();
+    setTimeout(() => loginPw.classList.remove('error'), 600);
+  }
+}
+document.getElementById('btn-login').addEventListener('click', tryLogin);
+loginPw.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+// 一度ログイン済みの端末はスキップ
+if (localStorage.getItem('ongakudo_authed') === '1') {
+  loginScreen.classList.add('hidden');
+  init();
+} else {
+  loginPw.focus();
+}
+
+// =============================================
+// タブ切り替え
+// =============================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById(`panel-${tab}`).classList.add('active');
+    if (tab === 'ranking')     loadRateRanking('欠席', 'ranking-wrap');
+    if (tab === 'rank-late')   loadRateRanking('遅刻', 'rank-late-wrap');
+    if (tab === 'rank-early')  loadRateRanking('早退', 'rank-early-wrap');
+    if (tab === 'stats')       loadComprehensiveStats();
+    if (tab === 'instruments') loadInstrumentManagement();
+    if (tab === 'import')      loadRegisteredMembers();
+    if (tab === 'io')           initIoTab();
+  });
+});
+
+// =============================================
+// 日付ピッカー・セッション切り替え（確認ダイアログ付き）
+// =============================================
+const datePicker = document.getElementById('date-picker');
+datePicker.value = currentDate;
+
+// 確認モーダル
+const confirmModal  = document.getElementById('confirm-modal');
+const confirmTitle  = document.getElementById('confirm-modal-title');
+const confirmBody   = document.getElementById('confirm-modal-body');
+const confirmOkBtn  = document.getElementById('confirm-ok');
+const confirmCancel = document.getElementById('confirm-cancel');
+
+let _pendingDate    = null;
+let _pendingSession = null;
+let _confirmOkHandler = null;
+
+function openConfirmModal(date, session) {
+  const sessionLabel = session === 'morning' ? '🌅 朝練' : '☀️ 午後練';
+  const [y, m, d] = date.split('-');
+  const dateLabel = `${y}年${m}月${d}日`;
+  confirmTitle.textContent = `${dateLabel}　${sessionLabel}`;
+  confirmBody.textContent  = 'この日付・セッションで新しく記録を開始しますか？\nOKを押すと全員が「出席」で記録されます。';
+  confirmModal.classList.add('open');
+
+  // 前のハンドラを除去して登録
+  if (_confirmOkHandler) confirmOkBtn.removeEventListener('click', _confirmOkHandler);
+  _confirmOkHandler = async () => {
+    confirmModal.classList.remove('open');
+    _pendingDate    = date;
+    _pendingSession = session;
+    currentDate    = date;
+    currentSession = session;
+    datePicker.value = currentDate;
+
+    // セッションボタンのactive更新
+    document.querySelectorAll('[data-session]').forEach(b => {
+      b.classList.toggle('active', b.dataset.session === currentSession);
+    });
+
+    // 全員出席でattendanceを初期化してFirestoreに即保存
+    attendance = {};
+    members.forEach(m => { attendance[m.id] = '出席'; });
+    try {
+      const payload = { pass: PASS };
+      members.forEach(m => { payload[m.id] = '出席'; });
+      await setDoc(doc(db, 'attendance', attendanceDocId()), payload);
+      showToast('✅ 記録を開始しました（全員出席）');
+    } catch (e) {
+      console.error('記録開始保存エラー', e);
+      showToast('❌ 保存に失敗しました: ' + e.message);
+    }
+    renderMemberList();
+  };
+  confirmOkBtn.addEventListener('click', _confirmOkHandler);
+}
+
+confirmCancel.addEventListener('click', () => {
+  confirmModal.classList.remove('open');
+  // 元の値に戻す
+  datePicker.value = currentDate;
+  document.querySelectorAll('[data-session]').forEach(b => {
+    b.classList.toggle('active', b.dataset.session === currentSession);
+  });
+});
+confirmModal.addEventListener('click', e => {
+  if (e.target === confirmModal) {
+    confirmModal.classList.remove('open');
+    datePicker.value = currentDate;
+    document.querySelectorAll('[data-session]').forEach(b => {
+      b.classList.toggle('active', b.dataset.session === currentSession);
+    });
+  }
+});
+
+datePicker.addEventListener('change', () => {
+  const newDate = datePicker.value;
+  if (!newDate) return;
+  openConfirmModal(newDate, currentSession);
+});
+
+document.getElementById('btn-today').addEventListener('click', () => {
+  openConfirmModal(todayStr(), currentSession);
+});
+
+// =============================================
+// 朝練／午後練 切り替え
+// =============================================
+document.querySelectorAll('[data-session]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const newSession = btn.dataset.session;
+    if (newSession === currentSession) return; // 同じセッションなら何もしない
+    openConfirmModal(currentDate, newSession);
+  });
+});
+
+// =============================================
+// ソート切り替え
+// =============================================
+document.querySelectorAll('#panel-attendance .sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#panel-attendance .sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sortMode = btn.dataset.sort;
+    renderMemberList();
+  });
+});
+
+// =============================================
+// Firestore: 部員一覧を読み込む
+// =============================================
+async function loadMembers() {
+  try {
+    const snap = await getDocs(collection(db, 'members'));
+    members = [];
+    snap.forEach(d => members.push({ id: d.id, ...d.data() }));
+    // 出席番号でデフォルトソート
+    members.sort((a, b) => Number(a.number) - Number(b.number));
+  } catch (e) {
+    console.error('部員読み込みエラー', e);
+    showToast('⚠️ 部員データの読み込みに失敗しました');
+  }
+}
+
+// =============================================
+// Firestore: 楽器一覧を読み込む
+// =============================================
+async function loadInstruments() {
+  try {
+    const snap = await getDocs(collection(db, 'instruments'));
+    instruments = [];
+    snap.forEach(d => instruments.push({ id: d.id, ...d.data() }));
+    instruments.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+  } catch (e) {
+    console.error('楽器読み込みエラー', e);
+    showToast('⚠️ 楽器データの読み込みに失敗しました');
+  }
+}
+
+// 出欠ドキュメントID（日付＋セッション）
+function attendanceDocId() {
+  return `${currentDate}_${currentSession}`;
+}
+
+// =============================================
+// Firestore: 指定日の出欠を読み込む
+// =============================================
+async function loadAttendance() {
+  attendance = {};
+  if (!currentDate) return;
+  try {
+    const ref  = doc(db, 'attendance', attendanceDocId());
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      Object.keys(data).forEach(key => {
+        if (key !== 'pass') attendance[key] = data[key];
+      });
+    }
+    // 記録がない部員はデフォルト出席にする
+    members.forEach(m => {
+      if (!attendance[m.id]) attendance[m.id] = '出席';
+    });
+  } catch (e) {
+    console.error('出欠読み込みエラー', e);
+  }
+}
+
+// =============================================
+// 部員一覧レンダリング
+// =============================================
+function getSortedMembers() {
+  if (sortMode === 'number') {
+    return [...members].sort((a, b) => Number(a.number) - Number(b.number));
+  } else {
+    return [...members].sort((a, b) => {
+      const ia = (a.instrument || '').localeCompare(b.instrument || '', 'ja');
+      if (ia !== 0) return ia;
+      return Number(a.number) - Number(b.number);
+    });
+  }
+}
+
+function renderMemberList() {
+  const wrap = document.getElementById('member-list-wrap');
+  const sorted = getSortedMembers();
+
+  if (sorted.length === 0) {
+    wrap.innerHTML = `<div class="empty">
+      <div class="emoji">🎸</div>
+      <p>まだ部員が登録されていません。<br>「名簿インポート」タブからCSVを読み込んでください。</p>
+    </div>`;
+    return;
+  }
+
+  let html = '<div class="member-list">';
+
+  if (sortMode === 'instrument') {
+    // 楽器グループ
+    const groups = {};
+    sorted.forEach(m => {
+      const key = m.instrument || '未設定';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(m);
+    });
+    Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ja')).forEach(inst => {
+      html += `<div class="group-header">🎵 ${inst}</div>`;
+      groups[inst].forEach(m => { html += memberRowHTML(m); });
+    });
+  } else {
+    sorted.forEach(m => { html += memberRowHTML(m); });
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  // ステータスボタンのイベント（タップで即自動保存）
+  wrap.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const memberId = btn.dataset.id;
+      const status   = btn.dataset.s;
+      attendance[memberId] = status;
+
+      // ボタン見た目更新
+      const row = btn.closest('.member-row');
+      row.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      // 行の色クラス更新
+      row.className = `member-row status-${status}`;
+
+      // 自動保存
+      await autoSave();
+    });
+  });
+}
+
+function memberRowHTML(m) {
+  const s = attendance[m.id] || '出席';
+  const statuses = ['出席', '欠席', '遅刻', '早退', '公欠'];
+  const btns = statuses.map(st =>
+    `<button class="status-btn${s === st ? ' selected' : ''}" data-s="${st}" data-id="${m.id}">${st}</button>`
+  ).join('');
+  return `
+    <div class="member-row${s ? ' status-' + s : ''}" data-id="${m.id}">
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name || '')}</div>
+        <div class="member-sub">No.${escHtml(String(m.number || ''))}　${escHtml(m.instrument || '')}</div>
+      </div>
+      <div class="status-btns">${btns}</div>
+    </div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// =============================================
+// 自動保存
+// =============================================
+let saveTimer = null;
+async function autoSave() {
+  if (!currentDate) return;
+  // 連打対策：直前のタイマーをキャンセルして300ms後に保存
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const payload = { pass: PASS };
+      Object.keys(attendance).forEach(id => { payload[id] = attendance[id]; });
+      await setDoc(doc(db, 'attendance', attendanceDocId()), payload);
+      showToast('✅ 保存しました');
+    } catch (e) {
+      console.error('自動保存エラー', e);
+      showToast('❌ 保存に失敗しました: ' + e.message);
+    }
+  }, 300);
+}
+
+// =============================================
+// 出欠統計の集計（全部員・全ステータス共通）
+// =============================================
+async function computeAllStats() {
+  const attSnap = await getDocs(collection(db, 'attendance'));
+  // {memberId: {total, 出席, 欠席, 遅刻, 早退}}
+  const stats = {};
+  members.forEach(m => { stats[m.id] = { total: 0, 出席: 0, 欠席: 0, 遅刻: 0, 早退: 0, 公欠: 0 }; });
+
+  attSnap.forEach(d => {
+    const data = d.data();
+    Object.keys(data).forEach(key => {
+      if (key === 'pass') return;
+      if (!stats[key]) return; // 名簿に存在しない（削除済み）部員IDは無視
+      const v = data[key];
+      if (v === '出席' || v === '欠席' || v === '遅刻' || v === '早退' || v === '公欠') {
+        stats[key].total++;
+        stats[key][v]++;
+      }
+    });
+  });
+
+  return stats;
+}
+
+// =============================================
+// 各種ランキング（欠席率／遅刻率／早退率）
+// =============================================
+async function loadRateRanking(statusKey, wrapId) {
+  const wrap = document.getElementById(wrapId);
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div>集計中…</div>';
+
+  try {
+    const stats = await computeAllStats();
+
+    // 部員名マップ
+    const nameMap = {};
+    const instrMap = {};
+    members.forEach(m => { nameMap[m.id] = m.name; instrMap[m.id] = m.instrument; });
+
+    // ランキング配列
+    const ranking = Object.keys(stats)
+      .filter(id => stats[id].total > 0)
+      .map(id => ({
+        id,
+        name:       nameMap[id] || id,
+        instrument: instrMap[id] || '',
+        total:      stats[id].total,
+        count:      stats[id][statusKey],
+        rate:       stats[id].total > 0 ? stats[id][statusKey] / stats[id].total : 0
+      }))
+      .sort((a, b) => b.rate - a.rate || b.count - a.count);
+
+    if (ranking.length === 0) {
+      wrap.innerHTML = `<div class="empty">
+        <div class="emoji">📊</div>
+        <p>まだ出欠データがありません。<br>「出欠入力」タブで記録を始めましょう！</p>
+      </div>`;
+      return;
+    }
+
+    let html = `<table class="rank-table">
+      <thead><tr>
+        <th>順位</th>
+        <th>名前</th>
+        <th>${statusKey}率</th>
+        <th style="text-align:right;">${statusKey}/記録</th>
+      </tr></thead><tbody>`;
+
+    ranking.forEach((r, i) => {
+      const rank = i + 1;
+      const numClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+      const pct = (r.rate * 100).toFixed(1);
+      const fillW = Math.round(r.rate * 100);
+      html += `<tr>
+        <td><span class="rank-num ${numClass}">${rank}</span></td>
+        <td>
+          <div style="font-weight:700;">${escHtml(r.name)}</div>
+          <div style="font-size:.75rem;color:var(--gray-400);">${escHtml(r.instrument)}</div>
+        </td>
+        <td style="min-width:120px;">
+          <div class="rate-bar-wrap">
+            <div class="rate-bar"><div class="rate-fill" style="width:${fillW}%;"></div></div>
+            <span class="rate-pct">${pct}%</span>
+          </div>
+        </td>
+        <td style="text-align:right;font-size:.88rem;color:var(--slate);">${r.count}/${r.total}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    console.error('ランキングエラー', e);
+    wrap.innerHTML = `<div class="empty"><div class="emoji">⚠️</div><p>データ取得に失敗しました。<br>${escHtml(e.message)}</p></div>`;
+  }
+}
+
+// =============================================
+// 統合統計（出席率／欠席率／遅刻率／早退率を一覧表示）
+// =============================================
+async function loadComprehensiveStats() {
+  const summaryWrap = document.getElementById('stats-summary');
+  const tableWrap    = document.getElementById('stats-table-wrap');
+  summaryWrap.innerHTML = '<div class="loading"><div class="spinner"></div>集計中…</div>';
+  tableWrap.innerHTML = '';
+
+  try {
+    const stats = await computeAllStats();
+
+    const rows = members.map(m => {
+      const s = stats[m.id] || { total: 0, 出席: 0, 欠席: 0, 遅刻: 0, 早退: 0, 公欠: 0 };
+      return {
+        id:         m.id,
+        name:       m.name,
+        instrument: m.instrument || '',
+        total:      s.total,
+        counts:     s,
+        rates: {
+          出席: s.total ? s.出席 / s.total : 0,
+          欠席: s.total ? s.欠席 / s.total : 0,
+          遅刻: s.total ? s.遅刻 / s.total : 0,
+          早退: s.total ? s.早退 / s.total : 0,
+          公欠: s.total ? s.公欠 / s.total : 0
+        }
+      };
+    }).filter(r => r.total > 0);
+
+    statsCache = rows;
+
+    if (rows.length === 0) {
+      summaryWrap.innerHTML = `<div class="empty"><div class="emoji">📈</div><p>まだ出欠データがありません。<br>「出欠入力」タブで記録を始めましょう！</p></div>`;
+      return;
+    }
+
+    // 延べ記録数（表示用）
+    let sumTotal = 0;
+    rows.forEach(r => { sumTotal += r.total; });
+
+    // 全体平均：部員一人ひとりの出席率・欠席率・遅刻率・早退率・公欠率をそのまま単純平均する
+    const avgRate = key => rows.reduce((sum, r) => sum + r.rates[key], 0) / rows.length;
+    const pct = v => (v * 100).toFixed(1);
+
+    statsOverall = {
+      memberCount: rows.length,
+      totalRecords: sumTotal,
+      rates: {
+        出席: avgRate('出席'),
+        欠席: avgRate('欠席'),
+        遅刻: avgRate('遅刻'),
+        早退: avgRate('早退'),
+        公欠: avgRate('公欠')
+      }
+    };
+
+    summaryWrap.innerHTML = `
+      <p style="font-size:.85rem;color:var(--slate);margin-bottom:14px;">
+        対象 ${rows.length} 名・延べ ${sumTotal} 記録（部員ごとの率を単純平均）
+      </p>
+      <div class="stat-summary-grid">
+        <div class="stat-summary-box">
+          <div class="label">出席率</div>
+          <div class="value" style="color:var(--success);">${pct(statsOverall.rates.出席)}%</div>
+        </div>
+        <div class="stat-summary-box">
+          <div class="label">欠席率</div>
+          <div class="value" style="color:var(--danger);">${pct(statsOverall.rates.欠席)}%</div>
+        </div>
+        <div class="stat-summary-box">
+          <div class="label">遅刻率</div>
+          <div class="value" style="color:var(--warn);">${pct(statsOverall.rates.遅刻)}%</div>
+        </div>
+        <div class="stat-summary-box">
+          <div class="label">早退率</div>
+          <div class="value" style="color:var(--info);">${pct(statsOverall.rates.早退)}%</div>
+        </div>
+        <div class="stat-summary-box">
+          <div class="label">公欠率</div>
+          <div class="value" style="color:var(--excused);">${pct(statsOverall.rates.公欠)}%</div>
+        </div>
+      </div>`;
+
+    renderStatsTable();
+  } catch (e) {
+    console.error('統合統計エラー', e);
+    summaryWrap.innerHTML = `<div class="empty"><div class="emoji">⚠️</div><p>データ取得に失敗しました。<br>${escHtml(e.message)}</p></div>`;
+  }
+}
+
+function renderStatsTable() {
+  const wrap = document.getElementById('stats-table-wrap');
+  if (!statsCache) return;
+
+  // 個別平均 = チェックが入っているステータスの率の合計
+  const activeKeys = ['出席', '欠席', '遅刻', '早退', '公欠'].filter(k => avgFilter[k]);
+  const calcIndiv = r => activeKeys.reduce((sum, k) => sum + r.rates[k], 0) * 100;
+
+  let rows = [...statsCache];
+  if (statsSortMode === 'name') {
+    rows.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  } else if (statsSortMode === '個別平均') {
+    rows.sort((a, b) => calcIndiv(b) - calcIndiv(a));
+  } else {
+    rows.sort((a, b) => b.rates[statsSortMode] - a.rates[statsSortMode]);
+  }
+
+  let html = `<div style="overflow-x:auto;"><table class="rank-table" style="min-width:640px;">
+    <thead><tr>
+      <th>名前</th>
+      <th style="text-align:right;">出席率</th>
+      <th style="text-align:right;">欠席率</th>
+      <th style="text-align:right;">遅刻率</th>
+      <th style="text-align:right;">早退率</th>
+      <th style="text-align:right;">公欠率</th>
+      <th style="text-align:right;color:var(--mint);">個別平均</th>
+      <th style="text-align:right;">記録</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach(r => {
+    const indiv = calcIndiv(r);
+    html += `<tr>
+      <td>
+        <div style="font-weight:700;">${escHtml(r.name)}</div>
+        <div style="font-size:.75rem;color:var(--gray-400);">${escHtml(r.instrument)}</div>
+      </td>
+      <td style="text-align:right;color:var(--success);font-weight:700;">${(r.rates.出席 * 100).toFixed(1)}%</td>
+      <td style="text-align:right;color:var(--danger);font-weight:700;">${(r.rates.欠席 * 100).toFixed(1)}%</td>
+      <td style="text-align:right;color:var(--warn);font-weight:700;">${(r.rates.遅刻 * 100).toFixed(1)}%</td>
+      <td style="text-align:right;color:var(--info);font-weight:700;">${(r.rates.早退 * 100).toFixed(1)}%</td>
+      <td style="text-align:right;color:var(--excused);font-weight:700;">${(r.rates.公欠 * 100).toFixed(1)}%</td>
+      <td style="text-align:right;color:var(--mint);font-weight:800;">${indiv.toFixed(1)}%</td>
+      <td style="text-align:right;font-size:.85rem;color:var(--slate);">${r.total}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+document.querySelectorAll('#stats-sort-bar .sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#stats-sort-bar .sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    statsSortMode = btn.dataset.statSort;
+    renderStatsTable();
+  });
+});
+
+// 全体平均フィルター
+document.querySelectorAll('#avg-filter .avg-filter-item input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const label = cb.closest('.avg-filter-item');
+    const key = label.dataset.key;
+    avgFilter[key] = cb.checked;
+    label.classList.toggle(`on-${key}`, cb.checked);
+    renderStatsTable();
+  });
+});
+
+// =============================================
+// CSVインポート
+// =============================================
+document.getElementById('csv-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  // TextDecoder(fatal:true) でUTF-8検証 → 失敗したらSJISにフォールバック
+  const binReader = new FileReader();
+  binReader.onload = e => {
+    const bytes = new Uint8Array(e.target.result);
+    const hasBom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+
+    let text;
+    if (hasBom) {
+      // BOM付きUTF-8
+      text = new TextDecoder('utf-8').decode(bytes);
+    } else {
+      try {
+        // BOMなしはまずUTF-8で厳密検証
+        text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch (e) {
+        // UTF-8として不正 → Shift-JIS
+        text = new TextDecoder('shift-jis').decode(bytes);
+      }
+    }
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    parseCsv(text);
+  };
+  binReader.readAsArrayBuffer(file);
+});
+
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) {
+    showToast('⚠️ データが少なすぎます（見出し＋1行以上必要）');
+    return;
+  }
+  // 1行目はヘッダーとして読み飛ばす
+  csvRows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols.length < 2) continue;
+    csvRows.push({
+      number:     cols[0] || '',
+      name:       cols[1] || '',
+      instrument: cols[2] || ''
+    });
+  }
+
+  if (csvRows.length === 0) {
+    showToast('⚠️ 有効なデータが見つかりませんでした');
+    document.getElementById('btn-import').disabled = true;
+    return;
+  }
+
+  // プレビュー
+  let html = `<p style="font-size:.85rem;color:var(--slate);margin-bottom:8px;">${csvRows.length}名のデータを検出しました：</p>`;
+  html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.85rem;">';
+  html += '<tr style="background:var(--gray-100);"><th style="padding:6px 8px;text-align:left;">番号</th><th style="padding:6px 8px;text-align:left;">名前</th><th style="padding:6px 8px;text-align:left;">楽器</th></tr>';
+  csvRows.slice(0, 10).forEach(r => {
+    html += `<tr style="border-bottom:1px solid var(--gray-200);">
+      <td style="padding:6px 8px;">${escHtml(r.number)}</td>
+      <td style="padding:6px 8px;">${escHtml(r.name)}</td>
+      <td style="padding:6px 8px;">${escHtml(r.instrument)}</td>
+    </tr>`;
+  });
+  if (csvRows.length > 10) {
+    html += `<tr><td colspan="3" style="padding:6px 8px;color:var(--gray-400);">…他 ${csvRows.length - 10} 名</td></tr>`;
+  }
+  html += '</table></div>';
+  document.getElementById('csv-preview').innerHTML = html;
+  document.getElementById('btn-import').disabled = false;
+}
+
+document.getElementById('btn-import').addEventListener('click', async () => {
+  if (!csvRows.length) return;
+  const btn = document.getElementById('btn-import');
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+
+  try {
+    // バッチで保存（500件制限につき分割）
+    const CHUNK = 400;
+    for (let i = 0; i < csvRows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      csvRows.slice(i, i + CHUNK).forEach(row => {
+        // IDは出席番号_名前のハッシュ代わりに安全文字列で
+        const id = `m_${String(row.number).replace(/\s/g,'')}_${row.name.replace(/\s/g,'').slice(0,10)}`;
+        const ref = doc(db, 'members', id);
+        batch.set(ref, {
+          number:     row.number,
+          name:       row.name,
+          instrument: row.instrument,
+          pass:       PASS
+        });
+      });
+      await batch.commit();
+    }
+
+    showToast(`✅ ${csvRows.length}名の名簿を保存しました！`);
+    csvRows = [];
+    document.getElementById('csv-preview').innerHTML = '';
+    document.getElementById('csv-file').value = '';
+    // 部員データ再読み込み
+    await loadMembers();
+    await loadRegisteredMembers();
+    renderMemberList();
+  } catch (e) {
+    console.error('インポートエラー', e);
+    showToast('❌ 保存に失敗しました: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Firestoreに保存する';
+  }
+});
+
+// =============================================
+// 登録済み部員表示（インポートタブ）
+// =============================================
+async function loadRegisteredMembers() {
+  const wrap = document.getElementById('registered-members');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+  await loadMembers();
+
+  if (members.length === 0) {
+    wrap.innerHTML = `<div class="empty"><div class="emoji">👥</div><p>まだ部員が登録されていません。</p></div>`;
+    return;
+  }
+
+  let html = `<p style="font-size:.85rem;color:var(--slate);margin-bottom:10px;">合計 ${members.length} 名が登録されています</p>`;
+  members.forEach(m => {
+    html += `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--gray-200);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:.95rem;">${escHtml(m.name || '')}</div>
+        <div style="font-size:.75rem;color:var(--gray-400);">No.${escHtml(String(m.number||''))}　${escHtml(m.instrument||'')}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="white-space:nowrap;" onclick="openEditModal('${escHtml(m.id)}')">✏️ 編集</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;white-space:nowrap;" onclick="deleteMember('${escHtml(m.id)}','${escHtml(m.name||'')}')">🗑️</button>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+// =============================================
+// モーダル（追加・編集）
+// =============================================
+const modalOverlay   = document.getElementById('member-modal');
+const modalTitle     = document.getElementById('modal-title');
+const modalNumber    = document.getElementById('modal-number');
+const modalName      = document.getElementById('modal-name');
+const modalInstrument= document.getElementById('modal-instrument');
+
+function populateInstrumentSelect(currentValue) {
+  let html = '<option value="">未設定</option>';
+  instruments.forEach(inst => {
+    html += `<option value="${escHtml(inst.name)}">${escHtml(inst.name)}</option>`;
+  });
+  // 楽器管理に登録されていない値が既存データに入っている場合は失わないように表示する
+  if (currentValue && !instruments.some(inst => inst.name === currentValue)) {
+    html += `<option value="${escHtml(currentValue)}">${escHtml(currentValue)}（未登録）</option>`;
+  }
+  modalInstrument.innerHTML = html;
+  modalInstrument.value = currentValue || '';
+}
+
+function openAddModal() {
+  modalMode = 'add';
+  editingId = null;
+  modalTitle.textContent = '部員を追加';
+  modalNumber.value = '';
+  modalName.value = '';
+  populateInstrumentSelect('');
+  modalOverlay.classList.add('open');
+  modalNumber.focus();
+}
+
+window.openEditModal = function(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  modalMode = 'edit';
+  editingId = id;
+  modalTitle.textContent = '部員を編集';
+  modalNumber.value = m.number || '';
+  modalName.value = m.name || '';
+  populateInstrumentSelect(m.instrument || '');
+  modalOverlay.classList.add('open');
+  modalName.focus();
+};
+
+function closeModal() {
+  modalOverlay.classList.remove('open');
+}
+
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+document.getElementById('btn-add-member').addEventListener('click', openAddModal);
+
+document.getElementById('modal-save').addEventListener('click', async () => {
+  const number     = modalNumber.value.trim();
+  const name       = modalName.value.trim();
+  const instrument = modalInstrument.value.trim();
+  if (!name) { showToast('⚠️ 名前を入力してください'); modalName.focus(); return; }
+
+  const saveBtn = document.getElementById('modal-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+
+  try {
+    let id;
+    if (modalMode === 'edit' && editingId) {
+      id = editingId;
+    } else {
+      id = `m_${String(number).replace(/\s/g,'')||Date.now()}_${name.replace(/\s/g,'').slice(0,10)}`;
+    }
+    await setDoc(doc(db, 'members', id), { number, name, instrument, pass: PASS });
+    showToast(modalMode === 'edit' ? '✅ 部員情報を更新しました' : '✅ 部員を追加しました');
+    closeModal();
+    await loadMembers();
+    await loadRegisteredMembers();
+    renderMemberList();
+  } catch (e) {
+    console.error('保存エラー', e);
+    showToast('❌ 保存に失敗しました: ' + e.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '保存する';
+  }
+});
+
+// =============================================
+// 部員削除
+// =============================================
+window.deleteMember = async function(id, name) {
+  if (!confirm(`「${name}」を名簿から削除しますか？\n出欠データは残ります。`)) return;
+  try {
+    await deleteDoc(doc(db, 'members', id));
+    showToast(`🗑️ ${name} を削除しました`);
+    await loadMembers();
+    await loadRegisteredMembers();
+    renderMemberList();
+  } catch (e) {
+    console.error('削除エラー', e);
+    showToast('❌ 削除に失敗しました: ' + e.message);
+  }
+};
+
+// =============================================
+// 楽器管理タブ
+// =============================================
+async function loadInstrumentManagement() {
+  const wrap = document.getElementById('instrument-list-wrap');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+  await loadInstruments();
+  await loadMembers(); // 使用人数の表示のため最新の部員データも取得
+  renderInstrumentList();
+}
+
+function renderInstrumentList() {
+  const wrap = document.getElementById('instrument-list-wrap');
+  if (instruments.length === 0) {
+    wrap.innerHTML = `<div class="empty"><div class="emoji">🎻</div><p>まだ楽器が登録されていません。<br>上のボタンから追加してください。</p></div>`;
+    return;
+  }
+
+  let html = `<p style="font-size:.85rem;color:var(--slate);margin-bottom:10px;">合計 ${instruments.length} 種類が登録されています</p>`;
+  instruments.forEach(inst => {
+    const useCount = members.filter(m => m.instrument === inst.name).length;
+    html += `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--gray-200);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:.95rem;">🎵 ${escHtml(inst.name || '')}</div>
+        <div style="font-size:.75rem;color:var(--gray-400);">${useCount}名が使用中</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="white-space:nowrap;" onclick="openEditInstrumentModal('${escHtml(inst.id)}')">✏️ 編集</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;white-space:nowrap;" onclick="deleteInstrument('${escHtml(inst.id)}','${escHtml(inst.name || '')}')">🗑️</button>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+const instrumentModalOverlay = document.getElementById('instrument-modal');
+const instrumentModalTitle   = document.getElementById('instrument-modal-title');
+const instrumentModalName    = document.getElementById('instrument-modal-name');
+
+function openAddInstrumentModal() {
+  instrumentModalMode = 'add';
+  editingInstrumentId = null;
+  instrumentModalTitle.textContent = '楽器を追加';
+  instrumentModalName.value = '';
+  instrumentModalOverlay.classList.add('open');
+  instrumentModalName.focus();
+}
+
+window.openEditInstrumentModal = function(id) {
+  const inst = instruments.find(x => x.id === id);
+  if (!inst) return;
+  instrumentModalMode = 'edit';
+  editingInstrumentId = id;
+  instrumentModalTitle.textContent = '楽器を編集';
+  instrumentModalName.value = inst.name || '';
+  instrumentModalOverlay.classList.add('open');
+  instrumentModalName.focus();
+};
+
+function closeInstrumentModal() {
+  instrumentModalOverlay.classList.remove('open');
+}
+
+document.getElementById('instrument-modal-cancel').addEventListener('click', closeInstrumentModal);
+instrumentModalOverlay.addEventListener('click', e => { if (e.target === instrumentModalOverlay) closeInstrumentModal(); });
+document.getElementById('btn-add-instrument').addEventListener('click', openAddInstrumentModal);
+
+document.getElementById('instrument-modal-save').addEventListener('click', async () => {
+  const name = instrumentModalName.value.trim();
+  if (!name) { showToast('⚠️ 楽器名を入力してください'); instrumentModalName.focus(); return; }
+
+  // 重複チェック（編集中の自分自身は除く）
+  const dup = instruments.find(x => x.name === name && x.id !== editingInstrumentId);
+  if (dup) { showToast('⚠️ その楽器名は既に登録されています'); return; }
+
+  const saveBtn = document.getElementById('instrument-modal-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+
+  try {
+    if (instrumentModalMode === 'edit' && editingInstrumentId) {
+      const oldInst = instruments.find(x => x.id === editingInstrumentId);
+      const oldName = oldInst ? oldInst.name : null;
+
+      await setDoc(doc(db, 'instruments', editingInstrumentId), { name, pass: PASS });
+
+      // 楽器名が変更された場合は、その楽器を使っている部員を一括更新する
+      if (oldName && oldName !== name) {
+        const affected = members.filter(m => m.instrument === oldName);
+        // Firestoreの1バッチ500件制限に対して安全マージンを取って分割
+        const CHUNK = 400;
+        for (let i = 0; i < affected.length; i += CHUNK) {
+          const batch = writeBatch(db);
+          affected.slice(i, i + CHUNK).forEach(m => {
+            batch.update(doc(db, 'members', m.id), { instrument: name });
+          });
+          await batch.commit();
+        }
+      }
+      showToast('✅ 楽器情報を更新しました');
+    } else {
+      const id = `i_${name.replace(/\s/g, '')}_${Date.now()}`;
+      await setDoc(doc(db, 'instruments', id), { name, pass: PASS });
+      showToast('✅ 楽器を追加しました');
+    }
+    closeInstrumentModal();
+    await loadInstruments();
+    await loadMembers();
+    renderInstrumentList();
+    renderMemberList();
+  } catch (e) {
+    console.error('楽器保存エラー', e);
+    showToast('❌ 保存に失敗しました: ' + e.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '保存する';
+  }
+});
+
+window.deleteInstrument = async function(id, name) {
+  const useCount = members.filter(m => m.instrument === name).length;
+  let msg = `「${name}」を削除しますか？`;
+  if (useCount > 0) {
+    msg += `\n現在 ${useCount} 名がこの楽器を選択しています。削除すると、その部員の担当楽器は「未設定」になります。`;
+  }
+  if (!confirm(msg)) return;
+
+  try {
+    // この楽器を使用している部員の担当楽器を未設定にクリア
+    const affected = members.filter(m => m.instrument === name);
+    // Firestoreの1バッチ500件制限に対して安全マージンを取って分割
+    const CHUNK = 400;
+    for (let i = 0; i < affected.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      affected.slice(i, i + CHUNK).forEach(m => {
+        batch.update(doc(db, 'members', m.id), { instrument: '' });
+      });
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, 'instruments', id));
+    showToast(`🗑️ ${name} を削除しました`);
+    await loadInstruments();
+    await loadMembers();
+    renderInstrumentList();
+    renderMemberList();
+  } catch (e) {
+    console.error('楽器削除エラー', e);
+    showToast('❌ 削除に失敗しました: ' + e.message);
+  }
+};
+
+// =============================================
+// 初期化（ログイン後に呼ばれる）
+// =============================================
+async function init() {
+  await loadMembers();
+  await loadInstruments();
+
+  // 今日の記録がFirestoreに既にあれば普通に読み込む
+  // まだなければ確認モーダルを出す
+  try {
+    const ref  = doc(db, 'attendance', attendanceDocId());
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      // 既存記録を読み込んで表示
+      await loadAttendance();
+      renderMemberList();
+    } else {
+      // 記録なし → 確認モーダル
+      // 部員一覧は空のまま表示しておく
+      attendance = {};
+      renderMemberList();
+      openConfirmModal(currentDate, currentSession);
+    }
+  } catch (e) {
+    console.error('初期化エラー', e);
+    await loadAttendance();
+    renderMemberList();
+  }
+}
+// ログイン前は init() を呼ばない
+
+// =============================================
+// 出欠データ 入出力タブ初期化
+// =============================================
+function initIoTab() {
+  // 日付の初期値セット（まだ入っていない場合）
+  const today = todayStr();
+  if (!document.getElementById('export-to').value) {
+    document.getElementById('export-to').value = today;
+  }
+  if (!document.getElementById('export-from').value) {
+    // 2ヶ月前
+    const d = new Date(today);
+    d.setMonth(d.getMonth() - 2);
+    document.getElementById('export-from').value = d.toISOString().slice(0, 10);
+  }
+}
+
+// =============================================
+// 出欠エクスポート
+// =============================================
+document.getElementById('btn-export-csv').addEventListener('click', async () => {
+  const fromVal = document.getElementById('export-from').value;
+  const toVal   = document.getElementById('export-to').value;
+  const status  = document.getElementById('export-status');
+  if (!fromVal || !toVal) { showToast('⚠️ 開始日と終了日を指定してください'); return; }
+  if (fromVal > toVal)    { showToast('⚠️ 開始日が終了日より後になっています'); return; }
+
+  status.textContent = '⏳ データ取得中…';
+  try {
+    // Firestoreから全出欠ドキュメントを取得
+    const attSnap = await getDocs(collection(db, 'attendance'));
+    const SESSIONS = ['afternoon', 'morning'];
+    const sessionLabel = { afternoon: '午後練', morning: '朝練' };
+
+    // メンバーをnumber順に並べる
+    const sortedMembers = [...members].sort((a, b) => Number(a.number) - Number(b.number));
+
+    // ヘッダー
+    const rows = [['日付', 'セッション', '出席番号', '名前', '担当楽器', '出欠']];
+
+    // 期間内のドキュメントを日付・セッション順に処理
+    const docs = [];
+    attSnap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+
+    // ドキュメントIDは "YYYY-MM-DD_session" 形式
+    const filtered = docs
+      .filter(d => {
+        const [date] = d.id.split('_');
+        return date >= fromVal && date <= toVal;
+      })
+      .sort((a, b) => {
+        const [da, sa] = a.id.split('_');
+        const [db2, sb] = b.id.split('_');
+        if (da !== db2) return da.localeCompare(db2);
+        return SESSIONS.indexOf(sa) - SESSIONS.indexOf(sb);
+      });
+
+    if (filtered.length === 0) {
+      status.textContent = '⚠️ 期間内にデータがありません';
+      return;
+    }
+
+    filtered.forEach(({ id, data }) => {
+      const [date, session] = id.split('_');
+      sortedMembers.forEach(m => {
+        const val = data[m.id] || '';
+        if (!val || val === 'pass') return; // pass/未記録はスキップ
+        rows.push([
+          date,
+          sessionLabel[session] || session,
+          m.number,
+          m.name,
+          m.instrument || '',
+          val
+        ]);
+      });
+    });
+
+    // CSV文字列生成（BOM付きUTF-8でExcelでも文字化けしない）
+    const csv = rows.map(r =>
+      r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `出欠_${fromVal}_${toVal}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    status.textContent = `✅ ${filtered.length}件のデータを出力しました`;
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('エクスポートエラー', e);
+    showToast('❌ エクスポートに失敗しました: ' + e.message);
+    status.textContent = '';
+  }
+});
+
+// =============================================
+// 出欠CSV一括インポート
+// =============================================
+let attImportRows = []; // { docId, memberId, value }[]
+
+function readFileAsText(file, encoding) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = e => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsText(file, encoding);
+  });
+}
+function readFileAsBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = e => resolve(new Uint8Array(e.target.result));
+    r.onerror = reject;
+    r.readAsArrayBuffer(file);
+  });
+}
+async function readCsvAuto(file) {
+  const bytes = await readFileAsBuffer(file);
+  const hasBom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+
+  // UTF-8 BOM付きはそのままUTF-8で読む
+  if (hasBom) {
+    let text = await readFileAsText(file, 'UTF-8');
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    return text;
+  }
+
+  // BOMなしはまずUTF-8として検証（fatal:true でデコードエラーを検出）
+  // UTF-8の多バイト文字（例：「月」= E6 9C 88）はSJIS判定範囲と重なるため
+  // バイトパターンだけではUTF-8/SJISを区別できない
+  try {
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return decoded;
+  } catch (e) {
+    // UTF-8として不正なバイト列 → Shift-JISで再試行
+    let text = await readFileAsText(file, 'Shift-JIS');
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    return text;
+  }
+}
+
+document.getElementById('att-csv-file').addEventListener('change', async function () {
+  const files = [...this.files];
+  if (!files.length) return;
+  const preview = document.getElementById('att-csv-preview');
+  preview.textContent = '⏳ 読み込み中…';
+  attImportRows = [];
+
+  const sessionMap = { '午後練': 'afternoon', '朝練': 'morning', 'afternoon': 'afternoon', 'morning': 'morning' };
+  const validVals  = new Set(['出席', '欠席', '遅刻', '早退', '公欠']);
+  const maruBatsu  = { '○': '出席', '◯': '出席', '〇': '出席', '×': '欠席', '✕': '欠席', 'x': '欠席', 'X': '欠席', '△': '遅刻', '▲': '早退', '公': '公欠' };
+
+  // 部員名→IDのマップ（空白を除去して照合）
+  const nameToId = {};
+  members.forEach(m => { nameToId[m.name.replace(/\s/g, '')] = m.id; });
+  // 番号→IDのマップ
+  const numToId = {};
+  members.forEach(m => { numToId[String(m.number)] = m.id; });
+
+  let fileCount = 0, rowCount = 0, skipCount = 0;
+  const errors = [];
+
+  for (const file of files) {
+    try {
+      const text = await readCsvAuto(file);
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 1) { errors.push(`${file.name}: データなし`); continue; }
+
+      // 区切り文字を自動判定（タブ優先）
+      const sep = lines[0].includes('\t') ? '\t' : ',';
+      const splitLine = line => line.split(sep).map(c => c.replace(/^"|"$/g, '').trim());
+
+      const firstCells = splitLine(lines[0]);
+
+      // ===== 旧形式判定 =====
+      // ヘッダー例：4月	番号	名前	1日	2日…
+      // 1列目が「N月」形式、かつ「番号」「名前」列、かつ「N日」列がある
+      const firstColMonth = parseInt(firstCells[0].replace(/月$/, ''));
+      const firstColIsMonth = /^\d{1,2}月$/.test(firstCells[0]) && firstColMonth >= 1 && firstColMonth <= 12;
+      const hasNumCol  = firstCells.some(h => ['番号','出席番号'].includes(h));
+      const hasNameCol = firstCells.some(h => ['氏名','名前'].includes(h));
+      const hasDayCols = firstCells.some(h => /^[\d０-９]+日$/.test(h));
+      const isLegacy   = firstColIsMonth && (hasNumCol || hasNameCol) && hasDayCols;
+
+      if (isLegacy) {
+        const legacyYear    = parseInt(document.getElementById('legacy-year').value);
+        const legacySession = document.getElementById('legacy-session').value;
+        if (!legacyYear || legacyYear < 2000 || legacyYear > 2100) {
+          errors.push(`${file.name}: 旧形式CSVは上の「年」欄に西暦を入力してください`);
+          continue;
+        }
+
+        // ヘッダーから列位置を取得
+        const month      = firstColMonth;
+        const colNum     = firstCells.findIndex(h => ['番号','出席番号'].includes(h));
+        const colName    = firstCells.findIndex(h => ['氏名','名前'].includes(h));
+        // 「N日」列をすべて取得
+        const dayCols    = firstCells.map((h, i) => {
+          const normalized = h.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+          const d = parseInt(normalized.replace(/日$/, ''));
+          return /^[\d０-９]+日$/.test(h) && d >= 1 && d <= 31 ? { i, day: d } : null;
+        }).filter(Boolean);
+
+        fileCount++;
+        for (let r = 1; r < lines.length; r++) {
+          const cells  = splitLine(lines[r]);
+          const name   = colName >= 0 ? cells[colName].replace(/[\s　]/g, '') : '';
+          const num    = colNum  >= 0 ? (cells[colNum] || '').replace(/[\s　]/g, '') : '';
+
+          const memberId = nameToId[name] || numToId[num];
+          if (!memberId) { skipCount++; continue; }
+
+          for (const { i, day } of dayCols) {
+            const raw = (cells[i] || '').trim();
+            if (!raw) continue;
+            const val = maruBatsu[raw] || (validVals.has(raw) ? raw : null);
+            if (!val) continue;
+            const mm   = String(month).padStart(2, '0');
+            const dd   = String(day).padStart(2, '0');
+            attImportRows.push({ docId: `${legacyYear}-${mm}-${dd}_${legacySession}`, memberId, val });
+            rowCount++;
+          }
+        }
+
+      } else {
+        // ===== 新形式：日付・セッション・出欠 列あり =====
+        const header = firstCells;
+        const col = {
+          date:    header.findIndex(h => h === '日付'),
+          session: header.findIndex(h => h === 'セッション'),
+          number:  header.findIndex(h => ['出席番号','番号'].includes(h)),
+          name:    header.findIndex(h => ['名前','氏名'].includes(h)),
+          val:     header.findIndex(h => ['出欠','状態'].includes(h)),
+        };
+        if (col.date < 0 || col.val < 0) {
+          errors.push(`${file.name}: 形式を認識できません（新形式なら「日付」「出欠」列、旧形式なら1列目が月のデータが必要です）`);
+          continue;
+        }
+
+        fileCount++;
+        for (let i = 1; i < lines.length; i++) {
+          const cells = splitLine(lines[i]);
+          const date    = cells[col.date]    || '';
+          const session = sessionMap[cells[col.session] || '午後練'] || 'afternoon';
+          const name    = col.name  >= 0 ? cells[col.name].replace(/[\s　]/g, '') : '';
+          const num     = col.number >= 0 ? cells[col.number] : '';
+          const raw     = cells[col.val] || '';
+          const val     = maruBatsu[raw] || (validVals.has(raw) ? raw : null);
+
+          if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) { skipCount++; continue; }
+          if (!val)                                   { skipCount++; continue; }
+
+          const memberId = nameToId[name] || numToId[num];
+          if (!memberId) { skipCount++; continue; }
+
+          attImportRows.push({ docId: `${date}_${session}`, memberId, val });
+          rowCount++;
+        }
+      }
+
+    } catch (e) {
+      errors.push(`${file.name}: 読み込みエラー (${e.message})`);
+    }
+  }
+
+  let html = `<strong>${fileCount}ファイル</strong> を読み込みました。有効な記録：<strong>${rowCount}件</strong>`;
+  if (skipCount)     html += `、スキップ：${skipCount}件`;
+  if (errors.length) html += `<br>⚠️ ${errors.join('<br>⚠️ ')}`;
+  preview.innerHTML = html;
+  document.getElementById('btn-att-import').disabled = attImportRows.length === 0;
+});
+
+document.getElementById('btn-att-import').addEventListener('click', async () => {
+  if (!attImportRows.length) return;
+  const btn = document.getElementById('btn-att-import');
+  btn.disabled = true;
+  btn.textContent = '⏳ 保存中…';
+
+  try {
+    // docId別にまとめる
+    const byDoc = {};
+    attImportRows.forEach(({ docId, memberId, val }) => {
+      if (!byDoc[docId]) byDoc[docId] = {};
+      byDoc[docId][memberId] = val;
+    });
+
+    const docIds = Object.keys(byDoc);
+    // 既存データとマージしながら保存（上書きでなくマージ）
+    for (let i = 0; i < docIds.length; i++) {
+      const docId  = docIds[i];
+      const ref    = doc(db, 'attendance', docId);
+      const snap   = await getDoc(ref);
+      const existing = snap.exists() ? snap.data() : { pass: PASS };
+      const merged = { ...existing, ...byDoc[docId] };
+      if (!merged.pass) merged.pass = PASS;
+      await setDoc(ref, merged);
+      btn.textContent = `⏳ 保存中… (${i + 1}/${docIds.length})`;
+    }
+
+    showToast(`✅ ${attImportRows.length}件の出欠を${docIds.length}日分保存しました`);
+    document.getElementById('att-csv-preview').textContent = '';
+    document.getElementById('att-csv-file').value = '';
+    attImportRows = [];
+    btn.textContent = 'Firestoreに一括保存する';
+    btn.disabled = true;
+  } catch (e) {
+    console.error('出欠インポートエラー', e);
+    showToast('❌ 保存に失敗しました: ' + e.message);
+    btn.textContent = 'Firestoreに一括保存する';
+    btn.disabled = false;
+  }
+});
+
+// ログイン前は init() を呼ばない
+</script>
+</body>
+</html>
