@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>実技試験 管理システム</title>
+<style>
+  :root{
+    --bg:#F5F7F4;
+    --surface:#FFFFFF;
+    --ink:#182430;
+    --ink-soft:#5B6B72;
+    --line:#DCE3DE;
+    --teal:#1F6F5C;
+    --teal-dark:#134338;
+    --teal-tint:#E7F1EE;
+    --amber:#C97A2B;
+    --amber-tint:#FBEEDF;
+    --danger:#B3261E;
+    --danger-tint:#FBE9E7;
+    --radius:10px;
+    --font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-weight:700;margin:0 0 12px;color:var(--ink);}
+  h1{font-size:20px;letter-spacing:.01em;}
+  h2{font-size:17px;border-left:4px solid var(--teal);padding-left:10px;}
+  h3{font-size:14px;color:var(--teal-dark);}
+  p{line-height:1.7;}
+  button{
+    font-family:inherit;font-size:14px;cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);
+    border-radius:8px;padding:9px 16px;color:var(--ink);
+    transition:background .12s ease, border-color .12s ease;
+  }
+  button:hover{border-color:var(--teal);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  button.primary{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+  button.primary:hover{background:var(--teal-dark);}
+  button.danger{border-color:var(--danger);color:var(--danger);}
+  button.danger:hover{background:var(--danger-tint);}
+  button.ghost{border-color:transparent;background:transparent;color:var(--ink-soft);}
+  input,select{
+    font-family:inherit;font-size:14px;padding:9px 10px;
+    border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+  }
+  input:focus,select:focus,button:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:middle;}
+  th{color:var(--ink-soft);font-weight:600;font-size:12.5px;background:#F0F3F1;position:sticky;top:0;}
+  tr:hover td{background:#FAFBFA;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;min-width:160px;}
+  .muted{color:var(--ink-soft);font-size:13px;}
+  .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;}
+  .tag.ok{background:var(--teal-tint);color:var(--teal-dark);}
+  .tag.warn{background:var(--amber-tint);color:var(--amber);}
+  .tag.bad{background:var(--danger-tint);color:var(--danger);}
+  .badge-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+  .scroll-x{overflow-x:auto;}
+  .hidden{display:none !important;}
+
+  /* ---- login ---- */
+  #loginScreen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,#EEF3EF,#F5F7F4);
+  }
+  #loginScreen .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:36px 32px;width:340px;}
+  #loginScreen h1{font-size:19px;margin-bottom:2px;}
+  #loginScreen .sub{color:var(--ink-soft);font-size:13px;margin-bottom:22px;}
+  #loginScreen input{width:100%;margin-bottom:12px;}
+  #loginScreen button{width:100%;padding:11px;font-size:15px;}
+  #loginError{color:var(--danger);font-size:13px;min-height:18px;margin-top:6px;}
+
+  /* ---- app shell ---- */
+  #app{display:flex;min-height:100vh;}
+  #sidebar{
+    width:200px;flex:none;background:var(--teal-dark);color:#EAF3EF;
+    padding:18px 0;display:flex;flex-direction:column;
+  }
+  #sidebar .brand{padding:0 18px 18px;font-weight:700;font-size:15px;border-bottom:1px solid rgba(255,255,255,.15);margin-bottom:8px;}
+  #sidebar .brand small{display:block;font-weight:400;font-size:11px;color:#BFE0D5;margin-top:2px;}
+  .navbtn{
+    display:block;width:100%;text-align:left;background:none;border:none;color:#D9ECE5;
+    padding:11px 18px;font-size:13.5px;border-radius:0;border-left:3px solid transparent;
+  }
+  .navbtn:hover{background:rgba(255,255,255,.06);}
+  .navbtn.active{background:rgba(255,255,255,.12);border-left-color:#7FD6BC;color:#fff;font-weight:600;}
+  #sidebar .foot{margin-top:auto;padding:12px 18px 0;border-top:1px solid rgba(255,255,255,.15);}
+  #sidebar .foot button{width:100%;background:transparent;border-color:rgba(255,255,255,.3);color:#EAF3EF;}
+
+  #main{flex:1;min-width:0;padding:26px 30px 60px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+  .exam-context{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;}
+  .exam-context select{border:none;padding:2px 4px;font-weight:600;}
+  .section{display:none;}
+  .section.active{display:block;}
+
+  .preview-wrap{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:10px 0;}
+  .step-badges{display:flex;gap:6px;margin-bottom:14px;}
+  .step-badges span{font-size:12px;padding:4px 10px;border-radius:99px;background:#EEF1EF;color:var(--ink-soft);}
+  .step-badges span.on{background:var(--teal);color:#fff;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+  .stat-box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .stat-box .num{font-size:26px;font-weight:700;color:var(--teal-dark);}
+  .stat-box .lbl{font-size:12px;color:var(--ink-soft);}
+
+  .progress-bar{height:8px;border-radius:99px;background:#E4E9E5;overflow:hidden;}
+  .progress-bar > i{display:block;height:100%;background:var(--teal);}
+
+  #toast{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+  .toast-item{background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+  .toast-item.err{background:var(--danger);}
+  .toast-item.ok{background:var(--teal-dark);}
+
+  #qrBox{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;}
+  #qrCanvas{background:#fff;padding:16px;border:1px solid var(--line);border-radius:10px;}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);display:flex;align-items:center;justify-content:center;z-index:200;}
+  .modal{background:#fff;border-radius:12px;padding:24px;max-width:520px;width:92%;max-height:85vh;overflow:auto;}
+  .modal h3{margin-bottom:10px;}
+  .modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+
+  /* ---- print ---- */
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block !important;position:absolute;top:0;left:0;width:100%;padding:20px;}
+    #printArea table{width:100%;}
+    #printArea h1{font-size:18px;}
+  }
+  .print-title{font-size:12px;color:var(--ink-soft);margin-bottom:2px;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="box">
+    <h1>実技試験 管理システム</h1>
+    <div class="sub">管理者アカウントでログインしてください</div>
+    <input id="loginEmail" type="email" placeholder="メールアドレス" autocomplete="username">
+    <input id="loginPassword" type="password" placeholder="パスワード" autocomplete="current-password">
+    <button class="primary" id="loginBtn">ログイン</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="brand">実技試験 管理<small id="adminEmailLabel"></small></div>
+    <button class="navbtn" data-tab="exam">試験管理</button>
+    <button class="navbtn" data-tab="import">CSVインポート</button>
+    <button class="navbtn" data-tab="students">生徒管理</button>
+    <button class="navbtn" data-tab="targets">試験対象生徒</button>
+    <button class="navbtn" data-tab="teachers">先生管理</button>
+    <button class="navbtn" data-tab="qr">QRコード</button>
+    <button class="navbtn" data-tab="progress">採点状況</button>
+    <button class="navbtn" data-tab="results">集計・順位</button>
+    <button class="navbtn" data-tab="print">印刷</button>
+    <div class="foot"><button id="logoutBtn">ログアウト</button></div>
+  </div>
+
+  <div id="main">
+    <div class="topbar no-print">
+      <h1 id="pageTitle">試験管理</h1>
+      <div class="exam-context">
+        <span class="muted" style="font-size:12px;">選択中の試験:</span>
+        <select id="globalExamSelect"><option value="">(未選択)</option></select>
+      </div>
+    </div>
+
+    <!-- ---------------- 試験管理 ---------------- -->
+    <section class="section" id="tab-exam">
+      <div class="card">
+        <h2>新しい試験を作成</h2>
+        <div class="row">
+          <div class="field" style="min-width:220px;">
+            <label>試験名</label>
+            <input id="examNameInput" placeholder="例：2026年度 前期実技試験">
+          </div>
+          <div class="field">
+            <label>試験日</label>
+            <input id="examDateInput" type="date">
+          </div>
+          <div class="field">
+            <label>ステータス</label>
+            <select id="examStatusInput">
+              <option value="準備中">準備中</option>
+              <option value="実施中">実施中</option>
+              <option value="終了">終了</option>
+            </select>
+          </div>
+          <div class="field"><button class="primary" id="createExamBtn">試験を作成</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>試験一覧</h2>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>試験名</th><th>試験日</th><th>ステータス</th><th>対象生徒数</th><th></th></tr></thead>
+            <tbody id="examTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- CSVインポート ---------------- -->
+    <section class="section" id="tab-import">
+      <div class="card">
+        <h2>CSVインポート</h2>
+        <p class="muted">レッスン室予約システムから出力された CSV（name, grade, attendanceNumber, instrument）を選択してください。UTF-8（BOM付き可）に対応しています。</p>
+        <div class="step-badges">
+          <span id="stepBadge1" class="on">① CSV選択</span>
+          <span id="stepBadge2">② 読み込み</span>
+          <span id="stepBadge3">③ プレビュー</span>
+          <span id="stepBadge4">④ インポート確定</span>
+        </div>
+        <input type="file" id="csvFileInput" accept=".csv,text/csv">
+        <div id="csvError" style="color:var(--danger);font-size:13px;margin-top:10px;"></div>
+        <div id="csvPreviewWrap" class="hidden">
+          <p style="margin-top:14px;"><strong id="csvPreviewCount"></strong> 件のデータを読み込みました。内容を確認してください。</p>
+          <div class="preview-wrap">
+            <table>
+              <thead><tr><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th></tr></thead>
+              <tbody id="csvPreviewBody"></tbody>
+            </table>
+          </div>
+          <div class="row">
+            <button class="primary" id="confirmImportBtn">この内容でインポート</button>
+            <button class="ghost" id="cancelImportBtn">選び直す</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>インポート履歴</h2>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>日時</th><th>ファイル名</th><th>件数</th><th></th></tr></thead>
+            <tbody id="importHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 生徒管理 ---------------- -->
+    <section class="section" id="tab-students">
+      <div class="card">
+        <h2>生徒管理</h2>
+        <div class="row">
+          <div class="field"><label>検索（氏名）</label><input id="studentSearchInput" placeholder="氏名で検索"></div>
+          <div class="field"><label>学年</label><select id="studentGradeFilter"><option value="">すべて</option></select></div>
+          <div class="field"><label>楽器</label><select id="studentInstFilter"><option value="">すべて</option></select></div>
+        </div>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th><th>取込日</th><th>使用中の試験数</th><th></th></tr></thead>
+            <tbody id="studentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 試験対象生徒 ---------------- -->
+    <section class="section" id="tab-targets">
+      <div class="card" id="targetsNoExam">
+        <p class="muted">上部の「選択中の試験」から試験を選んでください。</p>
+      </div>
+      <div class="card hidden" id="targetsContent">
+        <h2>試験対象生徒 <span class="muted" id="targetsExamLabel"></span></h2>
+        <div class="row">
+          <div class="field"><label>学年</label><select id="targetGradeFilter"><option value="">すべて</option></select></div>
+          <div class="field"><label>楽器</label><select id="targetInstFilter"><option value="">すべて</option></select></div>
+          <div class="field"><button id="targetSelectAllBtn">表示中を全て対象に含める</button></div>
+          <div class="field"><button id="targetDeselectAllBtn">表示中を全て対象から外す</button></div>
+        </div>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>対象</th><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th></tr></thead>
+            <tbody id="targetTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 先生管理 ---------------- -->
+    <section class="section" id="tab-teachers">
+      <div class="card">
+        <h2>先生を追加</h2>
+        <div class="row">
+          <div class="field" style="min-width:220px;"><label>先生の氏名</label><input id="teacherNameInput" placeholder="例：田中"></div>
+          <div class="field"><button class="primary" id="addTeacherBtn">追加</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>先生一覧</h2>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>氏名</th><th></th></tr></thead>
+            <tbody id="teacherTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- QR ---------------- -->
+    <section class="section" id="tab-qr">
+      <div class="card">
+        <h2>採点用URL（先生共通QRコード）</h2>
+        <p class="muted">全ての先生がこの1つのQRコードを読み取り、teacher.html を開いて、その後ご自身の名前を選びます。</p>
+        <div class="row">
+          <div class="field" style="min-width:340px;"><label>teacher.html のURL</label><input id="teacherUrlInput" placeholder="https://xxxx.github.io/xxx/teacher.html"></div>
+          <div class="field"><button class="primary" id="saveTeacherUrlBtn">保存してQRを生成</button></div>
+        </div>
+        <div id="qrBox" style="margin-top:18px;">
+          <div id="qrCanvas"></div>
+          <div>
+            <p class="muted">このQRコードを印刷し、試験会場に掲示してください。</p>
+            <p id="qrUrlText" style="word-break:break-all;font-size:13px;"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 採点状況 ---------------- -->
+    <section class="section" id="tab-progress">
+      <div class="card" id="progressNoExam"><p class="muted">上部の「選択中の試験」から試験を選んでください。</p></div>
+      <div id="progressContent" class="hidden">
+        <div class="stat-grid" id="progressStatGrid"></div>
+        <div class="card">
+          <h2>生徒別 採点進捗</h2>
+          <div class="scroll-x">
+            <table><thead><tr><th>氏名</th><th>学年/出席番号</th><th>楽器</th><th>進捗</th><th></th></tr></thead>
+            <tbody id="progressStudentBody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <h2>先生別 採点進捗</h2>
+          <div class="scroll-x">
+            <table><thead><tr><th>先生</th><th>進捗</th><th></th></tr></thead>
+            <tbody id="progressTeacherBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 集計・順位 ---------------- -->
+    <section class="section" id="tab-results">
+      <div class="card" id="resultsNoExam"><p class="muted">上部の「選択中の試験」から試験を選んでください。</p></div>
+      <div id="resultsContent" class="hidden">
+        <div class="card">
+          <h2>集計・順位 <span class="muted" id="resultsExamLabel"></span></h2>
+          <div class="row">
+            <div class="field"><label>楽器</label><select id="resultsInstFilter"><option value="">すべて</option></select></div>
+          </div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr id="resultsHeaderRow"><th>順位</th><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th><th>平均点</th><th>採点人数</th><th>状態</th><th></th></tr></thead>
+              <tbody id="resultsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 印刷 ---------------- -->
+    <section class="section" id="tab-print">
+      <div class="card" id="printNoExam"><p class="muted">上部の「選択中の試験」から試験を選んでください。</p></div>
+      <div id="printContent" class="hidden">
+        <div class="card">
+          <h2>全体結果の印刷</h2>
+          <p class="muted">現在選択中の試験の、順位・氏名・学年・出席番号・楽器・平均点の一覧を印刷します。</p>
+          <button class="primary" id="printOverallBtn">全体結果を印刷</button>
+        </div>
+        <div class="card">
+          <h2>個人結果の印刷</h2>
+          <div class="row">
+            <div class="field" style="min-width:220px;"><label>生徒を選択</label><select id="printStudentSelect"></select></div>
+            <div class="field"><button class="primary" id="printIndividualBtn">個人結果を印刷</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="modalRoot"></div>
+<div id="printArea"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+  query, where, onSnapshot, writeBatch, serverTimestamp, arrayUnion, arrayRemove
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+/* =========================================================
+   Firebase 設定 : ここを自分のプロジェクトの値に置き換えてください
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDy6ubn4A1-6JHsPRw8sdj0wXcwAC42SlM",
+  authDomain: "zitugi.firebaseapp.com",
+  projectId: "zitugi",
+  storageBucket: "zitugi.firebasestorage.app",
+  messagingSenderId: "143311521930",
+  appId: "1:143311521930:web:f3b1d176046fe0e96d0573"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* ========================= 小道具 ========================= */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const uuid = () => crypto.randomUUID();
+
+function toast(msg, type=''){
+  const el = document.createElement('div');
+  el.className = 'toast-item' + (type ? ' '+type : '');
+  el.textContent = msg;
+  $('#toast').appendChild(el);
+  setTimeout(()=>el.remove(), 4200);
+}
+
+function fmtDateTime(ts){
+  if(!ts) return '-';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function openModal(html){
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal">${html}</div>`;
+  $('#modalRoot').appendChild(bg);
+  return bg;
+}
+function closeModal(bg){ bg.remove(); }
+
+function confirmDialog(message, confirmLabel='実行する'){
+  return new Promise(resolve=>{
+    const bg = openModal(`
+      <h3>確認</h3>
+      <p style="white-space:pre-wrap;">${message}</p>
+      <div class="actions">
+        <button id="cdCancel">キャンセル</button>
+        <button class="danger" id="cdOk">${confirmLabel}</button>
+      </div>
+    `);
+    $('#cdCancel', bg).onclick = ()=>{ closeModal(bg); resolve(false); };
+    $('#cdOk', bg).onclick = ()=>{ closeModal(bg); resolve(true); };
+  });
+}
+
+/* ========================= CSVパーサ ========================= */
+function parseCSVText(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  const pushField = () => { row.push(field); field = ''; };
+  const pushRow = () => { pushField(); rows.push(row); row = []; };
+  while(i < text.length){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    } else {
+      if(c === '"'){ inQuotes = true; i++; continue; }
+      if(c === ','){ pushField(); i++; continue; }
+      if(c === '\r'){ if(text[i+1] === '\n') i++; i++; pushRow(); continue; }
+      if(c === '\n'){ i++; pushRow(); continue; }
+      field += c; i++; continue;
+    }
+  }
+  if(field.length > 0 || row.length > 0) pushRow();
+  return rows.filter(r => !(r.length === 1 && r[0].trim() === ''));
+}
+
+const REQUIRED_COLUMNS = ['name','grade','attendanceNumber','instrument'];
+
+function validateAndMapCSV(rows){
+  if(rows.length < 1) throw new Error('CSVにデータがありません。');
+  const header = rows[0].map(h => h.trim());
+  for(const col of REQUIRED_COLUMNS){
+    if(!header.includes(col)) throw new Error(`列「${col}」が見つかりません。`);
+  }
+  if(header.length !== REQUIRED_COLUMNS.length){
+    const extra = header.filter(h => !REQUIRED_COLUMNS.includes(h));
+    throw new Error(`想定外の列があります: ${extra.join(', ')}`);
+  }
+  const idx = {};
+  REQUIRED_COLUMNS.forEach(c => idx[c] = header.indexOf(c));
+  const dataRows = rows.slice(1).filter(r => r.some(v => v.trim() !== ''));
+  const result = [];
+  const errors = [];
+  dataRows.forEach((r, i) => {
+    const name = (r[idx.name] || '').trim();
+    const gradeRaw = (r[idx.grade] || '').trim();
+    const attRaw = (r[idx.attendanceNumber] || '').trim();
+    const instrument = (r[idx.instrument] || '').trim();
+    const grade = parseInt(gradeRaw, 10);
+    const attendanceNumber = parseInt(attRaw, 10);
+    if(!name || Number.isNaN(grade) || Number.isNaN(attendanceNumber) || !instrument){
+      errors.push(`${i+2}行目: 値が不正です（name="${name}" grade="${gradeRaw}" attendanceNumber="${attRaw}" instrument="${instrument}"）`);
+      return;
+    }
+    result.push({ name, grade, attendanceNumber, instrument });
+  });
+  if(errors.length) throw new Error('以下の行を確認してください:\n' + errors.join('\n'));
+  return result;
+}
+
+/* ========================= 状態 ========================= */
+const state = {
+  exams: [],
+  teachers: [],
+  students: [],
+  imports: [],
+  currentExamId: localStorage.getItem('currentExamId') || '',
+  targets: [],           // 現在選択中の試験の対象生徒(includedのみ)
+  scoresForExam: [],     // 現在選択中の試験の採点(全先生分, admin権限で取得)
+  pendingCsvRows: null,
+};
+
+let unsubTargets = null;
+let unsubScores = null;
+
+/* ========================= 認証 ========================= */
+$('#loginBtn').onclick = async () => {
+  $('#loginError').textContent = '';
+  const email = $('#loginEmail').value.trim();
+  const password = $('#loginPassword').value;
+  if(!email || !password){ $('#loginError').textContent = 'メールアドレスとパスワードを入力してください。'; return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  }catch(e){
+    $('#loginError').textContent = 'ログインに失敗しました: ' + (e.message || e.code);
+  }
+};
+
+$('#logoutBtn').onclick = async () => { await signOut(auth); };
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user){
+    $('#loginScreen').classList.remove('hidden');
+    $('#app').classList.add('hidden');
+    return;
+  }
+  // 管理者確認
+  try{
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+    if(!adminDoc.exists()){
+      $('#loginError').textContent = 'このアカウントには管理者権限がありません。Firestoreの admins コレクションに登録されているか確認してください。';
+      await signOut(auth);
+      return;
+    }
+  }catch(e){
+    $('#loginError').textContent = '権限確認でエラーが発生しました: ' + e.message;
+    await signOut(auth);
+    return;
+  }
+  $('#loginScreen').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  $('#adminEmailLabel').textContent = user.email || '';
+  initAppData();
+});
+
+/* ========================= タブ切替 ========================= */
+const TAB_TITLES = {
+  exam: '試験管理', import: 'CSVインポート', students: '生徒管理', targets: '試験対象生徒',
+  teachers: '先生管理', qr: 'QRコード', progress: '採点状況', results: '集計・順位', print: '印刷'
+};
+$$('.navbtn').forEach(btn => {
+  btn.onclick = () => {
+    $$('.navbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('.section').forEach(s => s.classList.remove('active'));
+    $('#tab-' + btn.dataset.tab).classList.add('active');
+    $('#pageTitle').textContent = TAB_TITLES[btn.dataset.tab];
+  };
+});
+$('.navbtn[data-tab="exam"]').classList.add('active');
+$('#tab-exam').classList.add('active');
+
+/* ========================= データ購読初期化 ========================= */
+function initAppData(){
+  onSnapshot(collection(db, 'exams'), snap => {
+    state.exams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderExamTable();
+    renderGlobalExamSelect();
+    renderTargetsTab();
+    renderProgressTab();
+    renderResultsTab();
+    renderPrintTab();
+  });
+  onSnapshot(collection(db, 'teachers'), snap => {
+    state.teachers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTeacherTable();
+    renderProgressTab();
+    renderResultsTab();
+  });
+  onSnapshot(collection(db, 'students'), snap => {
+    state.students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderStudentTable();
+    renderTargetsTab();
+    renderStudentFilterOptions();
+  });
+  onSnapshot(collection(db, 'imports'), snap => {
+    state.imports = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b) => (b.importedAtMs||0) - (a.importedAtMs||0));
+    renderImportHistory();
+  });
+  getDoc(doc(db,'config','app')).then(d => {
+    if(d.exists() && d.data().teacherUrl){
+      $('#teacherUrlInput').value = d.data().teacherUrl;
+      renderQr(d.data().teacherUrl);
+    } else {
+      const guessed = location.href.replace(/admin\.html.*$/, 'teacher.html');
+      $('#teacherUrlInput').value = guessed;
+    }
+  });
+  if(state.currentExamId){
+    $('#globalExamSelect').value = state.currentExamId;
+    watchExamContext(state.currentExamId);
+  }
+}
+
+/* ========================= 試験管理 ========================= */
+$('#createExamBtn').onclick = async () => {
+  const examName = $('#examNameInput').value.trim();
+  const examDate = $('#examDateInput').value;
+  const status = $('#examStatusInput').value;
+  if(!examName || !examDate){ toast('試験名と試験日を入力してください', 'err'); return; }
+  const examId = uuid();
+  await setDoc(doc(db, 'exams', examId), {
+    examId, examName, examDate, status, createdAt: serverTimestamp()
+  });
+  $('#examNameInput').value = ''; $('#examDateInput').value = '';
+  toast('試験を作成しました', 'ok');
+};
+
+function renderExamTable(){
+  const tbody = $('#examTableBody');
+  tbody.innerHTML = '';
+  state.exams.slice().sort((a,b) => (b.examDate||'').localeCompare(a.examDate||'')).forEach(ex => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(ex.examName)}</td>
+      <td>${escapeHtml(ex.examDate||'')}</td>
+      <td>
+        <select data-exam="${ex.id}" class="examStatusSelect">
+          <option value="準備中" ${ex.status==='準備中'?'selected':''}>準備中</option>
+          <option value="実施中" ${ex.status==='実施中'?'selected':''}>実施中</option>
+          <option value="終了" ${ex.status==='終了'?'selected':''}>終了</option>
+        </select>
+      </td>
+      <td>${ex.targetCount ?? '-'}</td>
+      <td>
+        <button data-exam="${ex.id}" class="selectExamBtn">これを選択</button>
+        <button data-exam="${ex.id}" class="deleteExamBtn danger">削除</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  $$('.examStatusSelect', tbody).forEach(sel => {
+    sel.onchange = async () => {
+      await updateDoc(doc(db,'exams', sel.dataset.exam), { status: sel.value });
+      toast('ステータスを更新しました', 'ok');
+    };
+  });
+  $$('.selectExamBtn', tbody).forEach(btn => {
+    btn.onclick = () => {
+      state.currentExamId = btn.dataset.exam;
+      localStorage.setItem('currentExamId', state.currentExamId);
+      $('#globalExamSelect').value = state.currentExamId;
+      watchExamContext(state.currentExamId);
+      toast('試験を選択しました', 'ok');
+    };
+  });
+  $$('.deleteExamBtn', tbody).forEach(btn => {
+    btn.onclick = async () => {
+      const examId = btn.dataset.exam;
+      const scoresSnap = await getDocs(query(collection(db,'scores'), where('examId','==',examId)));
+      const targetsSnap = await getDocs(collection(db,'exams',examId,'targets'));
+      if(scoresSnap.size > 0 || targetsSnap.size > 0){
+        toast('この試験には採点データまたは対象生徒が存在するため削除できません', 'err');
+        return;
+      }
+      const ok = await confirmDialog('この試験を削除します。よろしいですか？');
+      if(!ok) return;
+      await deleteDoc(doc(db,'exams', examId));
+      toast('試験を削除しました', 'ok');
+    };
+  });
+}
+
+function renderGlobalExamSelect(){
+  const sel = $('#globalExamSelect');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">(未選択)</option>' +
+    state.exams.slice().sort((a,b)=>(b.examDate||'').localeCompare(a.examDate||''))
+      .map(ex => `<option value="${ex.id}">${escapeHtml(ex.examName)}（${escapeHtml(ex.examDate||'')} / ${escapeHtml(ex.status||'')}）</option>`).join('');
+  sel.value = state.currentExamId || prev || '';
+}
+$('#globalExamSelect').onchange = (e) => {
+  state.currentExamId = e.target.value;
+  localStorage.setItem('currentExamId', state.currentExamId);
+  watchExamContext(state.currentExamId);
+};
+
+function watchExamContext(examId){
+  if(unsubTargets) unsubTargets();
+  if(unsubScores) unsubScores();
+  state.targets = [];
+  state.scoresForExam = [];
+  if(!examId){
+    renderTargetsTab(); renderProgressTab(); renderResultsTab(); renderPrintTab();
+    return;
+  }
+  unsubTargets = onSnapshot(collection(db,'exams', examId, 'targets'), snap => {
+    state.targets = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.included);
+    updateDoc(doc(db,'exams', examId), { targetCount: state.targets.length }).catch(()=>{});
+    renderTargetsTab(); renderProgressTab(); renderResultsTab(); renderPrintTab();
+  });
+  unsubScores = onSnapshot(query(collection(db,'scores'), where('examId','==', examId)), snap => {
+    state.scoresForExam = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderProgressTab(); renderResultsTab(); renderPrintTab();
+  });
+}
+
+/* ========================= CSVインポート ========================= */
+$('#csvFileInput').onchange = (e) => {
+  const file = e.target.files[0];
+  $('#csvError').textContent = '';
+  $('#csvPreviewWrap').classList.add('hidden');
+  setStepBadge(1);
+  if(!file) return;
+  setStepBadge(2);
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const rows = parseCSVText(reader.result);
+      const mapped = validateAndMapCSV(rows);
+      state.pendingCsvRows = { fileName: file.name, rows: mapped };
+      setStepBadge(3);
+      renderCsvPreview(mapped);
+    }catch(err){
+      $('#csvError').textContent = err.message;
+      state.pendingCsvRows = null;
+    }
+  };
+  reader.onerror = () => { $('#csvError').textContent = 'ファイルの読み込みに失敗しました。'; };
+  reader.readAsText(file, 'UTF-8');
+};
+
+function setStepBadge(step){
+  [1,2,3,4].forEach(n => $('#stepBadge'+n).classList.toggle('on', n <= step));
+}
+
+function renderCsvPreview(rows){
+  $('#csvPreviewCount').textContent = rows.length;
+  $('#csvPreviewBody').innerHTML = rows.map(r => `
+    <tr><td>${escapeHtml(r.name)}</td><td>${r.grade}</td><td>${r.attendanceNumber}</td><td>${escapeHtml(r.instrument)}</td></tr>
+  `).join('');
+  $('#csvPreviewWrap').classList.remove('hidden');
+}
+
+$('#cancelImportBtn').onclick = () => {
+  state.pendingCsvRows = null;
+  $('#csvFileInput').value = '';
+  $('#csvPreviewWrap').classList.add('hidden');
+  setStepBadge(1);
+};
+
+$('#confirmImportBtn').onclick = async () => {
+  if(!state.pendingCsvRows) return;
+  const { fileName, rows } = state.pendingCsvRows;
+  const importId = uuid();
+  const now = Date.now();
+  const studentIds = [];
+  const batchSize = 400;
+  for(let i = 0; i < rows.length; i += batchSize){
+    const batch = writeBatch(db);
+    const slice = rows.slice(i, i + batchSize);
+    slice.forEach(r => {
+      const studentId = uuid();
+      studentIds.push(studentId);
+      batch.set(doc(db,'students', studentId), {
+        studentId, name: r.name, grade: r.grade, attendanceNumber: r.attendanceNumber,
+        instrument: r.instrument, importId, importedAt: serverTimestamp(), usedInExamIds: []
+      });
+    });
+    await batch.commit();
+  }
+  await setDoc(doc(db,'imports', importId), {
+    importId, fileName, studentIds, count: studentIds.length,
+    importedAt: serverTimestamp(), importedAtMs: now
+  });
+  toast(`${studentIds.length}件の生徒データをインポートしました`, 'ok');
+  setStepBadge(4);
+  state.pendingCsvRows = null;
+  $('#csvFileInput').value = '';
+  $('#csvPreviewWrap').classList.add('hidden');
+  setTimeout(()=>setStepBadge(1), 1200);
+};
+
+function renderImportHistory(){
+  const tbody = $('#importHistoryBody');
+  tbody.innerHTML = state.imports.map(imp => `
+    <tr>
+      <td>${fmtDateTime(imp.importedAt)}</td>
+      <td>${escapeHtml(imp.fileName||'')}</td>
+      <td>${imp.count}</td>
+      <td><button data-import="${imp.id}" class="danger cancelImportRowBtn">このインポートを取り消す</button></td>
+    </tr>
+  `).join('');
+  $$('.cancelImportRowBtn', tbody).forEach(btn => {
+    btn.onclick = () => cancelImport(btn.dataset.import);
+  });
+}
+
+async function cancelImport(importId){
+  const imp = state.imports.find(i => i.id === importId);
+  if(!imp) return;
+  const relatedStudents = state.students.filter(s => s.importId === importId);
+  const usedList = [];
+  for(const s of relatedStudents){
+    if(s.usedInExamIds && s.usedInExamIds.length){
+      const examNames = s.usedInExamIds.map(eid => {
+        const ex = state.exams.find(e => e.id === eid);
+        return ex ? ex.examName : eid;
+      });
+      usedList.push(`・${s.name}（${examNames.join('、')}）`);
+    }
+  }
+  let msg = `このインポート（${fmtDateTime(imp.importedAt)} / ${imp.count}件）を取り消し、生徒データを削除します。`;
+  if(usedList.length){
+    msg += `\n\n以下の生徒は既に試験で使用されています:\n${usedList.join('\n')}\n\n削除しても試験の採点データ自体は消えません（試験側に控えが保持されます）が、生徒マスタからは削除されます。よろしいですか？`;
+  } else {
+    msg += '\n\nよろしいですか？';
+  }
+  const ok = await confirmDialog(msg, '取り消す');
+  if(!ok) return;
+
+  const ids = imp.studentIds || [];
+  const batchSize = 400;
+  for(let i = 0; i < ids.length; i += batchSize){
+    const batch = writeBatch(db);
+    ids.slice(i, i+batchSize).forEach(sid => batch.delete(doc(db,'students', sid)));
+    await batch.commit();
+  }
+  await deleteDoc(doc(db,'imports', importId));
+  toast('インポートを取り消しました', 'ok');
+}
+
+/* ========================= 生徒管理 ========================= */
+function renderStudentFilterOptions(){
+  const grades = [...new Set(state.students.map(s => s.grade))].sort((a,b)=>a-b);
+  const insts = [...new Set(state.students.map(s => s.instrument))].sort();
+  fillSelectOptions($('#studentGradeFilter'), grades, v => `${v}年`);
+  fillSelectOptions($('#studentInstFilter'), insts, v => v);
+  fillSelectOptions($('#targetGradeFilter'), grades, v => `${v}年`);
+  fillSelectOptions($('#targetInstFilter'), insts, v => v);
+  fillSelectOptions($('#resultsInstFilter'), insts, v => v);
+}
+function fillSelectOptions(sel, values, labelFn){
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">すべて</option>' + values.map(v => `<option value="${v}">${labelFn(v)}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderStudentTable(){
+  const search = ($('#studentSearchInput').value||'').trim();
+  const gradeF = $('#studentGradeFilter').value;
+  const instF = $('#studentInstFilter').value;
+  let list = state.students.slice();
+  if(search) list = list.filter(s => s.name.includes(search));
+  if(gradeF) list = list.filter(s => String(s.grade) === gradeF);
+  if(instF) list = list.filter(s => s.instrument === instF);
+  list.sort((a,b) => a.grade - b.grade || a.attendanceNumber - b.attendanceNumber);
+  $('#studentTableBody').innerHTML = list.map(s => `
+    <tr>
+      <td>${escapeHtml(s.name)}</td><td>${s.grade}</td><td>${s.attendanceNumber}</td><td>${escapeHtml(s.instrument)}</td>
+      <td>${fmtDateTime(s.importedAt)}</td>
+      <td>${(s.usedInExamIds||[]).length}</td>
+      <td>${(s.usedInExamIds||[]).length===0 ? `<button data-sid="${s.id}" class="danger delStudentBtn">削除</button>` : ''}</td>
+    </tr>
+  `).join('');
+  $$('.delStudentBtn').forEach(btn => {
+    btn.onclick = async () => {
+      const ok = await confirmDialog('この生徒データを削除します。よろしいですか？');
+      if(!ok) return;
+      await deleteDoc(doc(db,'students', btn.dataset.sid));
+      toast('削除しました', 'ok');
+    };
+  });
+}
+['studentSearchInput','studentGradeFilter','studentInstFilter'].forEach(id => {
+  $('#'+id).addEventListener('input', renderStudentTable);
+  $('#'+id).addEventListener('change', renderStudentTable);
+});
+
+/* ========================= 試験対象生徒 ========================= */
+function renderTargetsTab(){
+  if(!state.currentExamId){
+    $('#targetsNoExam').classList.remove('hidden');
+    $('#targetsContent').classList.add('hidden');
+    return;
+  }
+  $('#targetsNoExam').classList.add('hidden');
+  $('#targetsContent').classList.remove('hidden');
+  const ex = state.exams.find(e => e.id === state.currentExamId);
+  $('#targetsExamLabel').textContent = ex ? `（${ex.examName}）` : '';
+
+  const gradeF = $('#targetGradeFilter').value;
+  const instF = $('#targetInstFilter').value;
+  let list = state.students.slice();
+  if(gradeF) list = list.filter(s => String(s.grade) === gradeF);
+  if(instF) list = list.filter(s => s.instrument === instF);
+  list.sort((a,b) => a.grade - b.grade || a.attendanceNumber - b.attendanceNumber);
+
+  const targetIds = new Set(state.targets.map(t => t.id));
+  $('#targetTableBody').innerHTML = list.map(s => `
+    <tr>
+      <td><input type="checkbox" class="targetCheckbox" data-sid="${s.id}" ${targetIds.has(s.id)?'checked':''}></td>
+      <td>${escapeHtml(s.name)}</td><td>${s.grade}</td><td>${s.attendanceNumber}</td><td>${escapeHtml(s.instrument)}</td>
+    </tr>
+  `).join('');
+  $$('.targetCheckbox').forEach(cb => {
+    cb.onchange = () => toggleTarget(cb.dataset.sid, cb.checked, cb);
+  });
+}
+['targetGradeFilter','targetInstFilter'].forEach(id => $('#'+id).addEventListener('change', renderTargetsTab));
+
+async function toggleTarget(studentId, include, checkboxEl){
+  const examId = state.currentExamId;
+  const student = state.students.find(s => s.id === studentId);
+  if(!student) return;
+  if(include){
+    await setDoc(doc(db,'exams', examId, 'targets', studentId), {
+      studentId, name: student.name, grade: student.grade,
+      attendanceNumber: student.attendanceNumber, instrument: student.instrument,
+      included: true, addedAt: serverTimestamp()
+    });
+    await updateDoc(doc(db,'students', studentId), { usedInExamIds: arrayUnion(examId) });
+  } else {
+    const scoreSnap = await getDocs(query(collection(db,'scores'), where('examId','==',examId), where('studentId','==',studentId)));
+    if(scoreSnap.size > 0){
+      toast('採点データが存在するため、この生徒を対象から外すことはできません', 'err');
+      if(checkboxEl) checkboxEl.checked = true;
+      return;
+    }
+    await deleteDoc(doc(db,'exams', examId, 'targets', studentId));
+    await updateDoc(doc(db,'students', studentId), { usedInExamIds: arrayRemove(examId) });
+  }
+}
+
+$('#targetSelectAllBtn').onclick = async () => {
+  const checkboxes = $$('.targetCheckbox').filter(cb => !cb.checked);
+  for(const cb of checkboxes){ cb.checked = true; await toggleTarget(cb.dataset.sid, true); }
+};
+$('#targetDeselectAllBtn').onclick = async () => {
+  const checkboxes = $$('.targetCheckbox').filter(cb => cb.checked);
+  for(const cb of checkboxes){ await toggleTarget(cb.dataset.sid, false, cb); }
+};
+
+/* ========================= 先生管理 ========================= */
+$('#addTeacherBtn').onclick = async () => {
+  const name = $('#teacherNameInput').value.trim();
+  if(!name){ toast('先生の氏名を入力してください', 'err'); return; }
+  const teacherId = uuid();
+  await setDoc(doc(db,'teachers', teacherId), { teacherId, teacherName: name, createdAt: serverTimestamp() });
+  $('#teacherNameInput').value = '';
+  toast('先生を追加しました', 'ok');
+};
+
+function renderTeacherTable(){
+  $('#teacherTableBody').innerHTML = state.teachers.map(t => `
+    <tr>
+      <td><input class="teacherNameEdit" data-tid="${t.id}" value="${escapeHtml(t.teacherName)}"></td>
+      <td>
+        <button data-tid="${t.id}" class="saveTeacherBtn">保存</button>
+        <button data-tid="${t.id}" class="danger delTeacherBtn">削除</button>
+      </td>
+    </tr>
+  `).join('');
+  $$('.saveTeacherBtn').forEach(btn => {
+    btn.onclick = async () => {
+      const input = $(`.teacherNameEdit[data-tid="${btn.dataset.tid}"]`);
+      const val = input.value.trim();
+      if(!val) return;
+      await updateDoc(doc(db,'teachers', btn.dataset.tid), { teacherName: val });
+      toast('更新しました', 'ok');
+    };
+  });
+  $$('.delTeacherBtn').forEach(btn => {
+    btn.onclick = async () => {
+      const scoreSnap = await getDocs(query(collection(db,'scores'), where('teacherId','==', btn.dataset.tid)));
+      if(scoreSnap.size > 0){
+        toast('この先生には採点データがあるため削除できません', 'err');
+        return;
+      }
+      const ok = await confirmDialog('この先生を削除します。よろしいですか？');
+      if(!ok) return;
+      await deleteDoc(doc(db,'teachers', btn.dataset.tid));
+      toast('削除しました', 'ok');
+    };
+  });
+}
+
+/* ========================= QRコード ========================= */
+$('#saveTeacherUrlBtn').onclick = async () => {
+  const url = $('#teacherUrlInput').value.trim();
+  if(!url){ toast('URLを入力してください', 'err'); return; }
+  await setDoc(doc(db,'config','app'), { teacherUrl: url }, { merge: true });
+  renderQr(url);
+  toast('保存しました', 'ok');
+};
+
+function renderQr(url){
+  $('#qrUrlText').textContent = url;
+  $('#qrCanvas').innerHTML = '';
+  const size = 220;
+  const img = document.createElement('img');
+  img.width = size; img.height = size; img.alt = 'QRコード';
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
+  $('#qrCanvas').appendChild(img);
+}
+
+/* ========================= 採点状況 ========================= */
+function renderProgressTab(){
+  if(!state.currentExamId){
+    $('#progressNoExam').classList.remove('hidden');
+    $('#progressContent').classList.add('hidden');
+    return;
+  }
+  $('#progressNoExam').classList.add('hidden');
+  $('#progressContent').classList.remove('hidden');
+
+  const totalTeachers = state.teachers.length;
+  const totalStudents = state.targets.length;
+  const scoredCount = state.scoresForExam.length;
+  const fullyDone = state.targets.filter(t => countScoresForStudent(t.id) >= totalTeachers && totalTeachers > 0).length;
+
+  $('#progressStatGrid').innerHTML = `
+    <div class="stat-box"><div class="num">${totalStudents}</div><div class="lbl">対象生徒数</div></div>
+    <div class="stat-box"><div class="num">${totalTeachers}</div><div class="lbl">登録された先生数</div></div>
+    <div class="stat-box"><div class="num">${scoredCount}</div><div class="lbl">登録済み採点件数</div></div>
+    <div class="stat-box"><div class="num">${fullyDone} / ${totalStudents}</div><div class="lbl">採点完了済み生徒数</div></div>
+  `;
+
+  const sortedTargets = state.targets.slice().sort((a,b)=> a.grade-b.grade || a.attendanceNumber-b.attendanceNumber);
+  $('#progressStudentBody').innerHTML = sortedTargets.map(t => {
+    const c = countScoresForStudent(t.id);
+    const pct = totalTeachers ? Math.round(c/totalTeachers*100) : 0;
+    return `<tr>
+      <td>${escapeHtml(t.name)}</td><td>${t.grade}年 / ${t.attendanceNumber}番</td><td>${escapeHtml(t.instrument)}</td>
+      <td><div class="progress-bar"><i style="width:${pct}%;"></i></div></td>
+      <td>${c} / ${totalTeachers} 人</td>
+    </tr>`;
+  }).join('');
+
+  $('#progressTeacherBody').innerHTML = state.teachers.map(te => {
+    const c = state.scoresForExam.filter(s => s.teacherId === te.id).length;
+    const pct = totalStudents ? Math.round(c/totalStudents*100) : 0;
+    return `<tr>
+      <td>${escapeHtml(te.teacherName)}</td>
+      <td><div class="progress-bar"><i style="width:${pct}%;"></i></div></td>
+      <td>${c} / ${totalStudents} 人</td>
+    </tr>`;
+  }).join('');
+}
+function countScoresForStudent(studentId){
+  return state.scoresForExam.filter(s => s.studentId === studentId).length;
+}
+
+/* ========================= 集計・順位 ========================= */
+function computeResults(){
+  const totalTeachers = state.teachers.length;
+  let rows = state.targets.map(t => {
+    const scores = state.scoresForExam.filter(s => s.studentId === t.id);
+    const count = scores.length;
+    const sum = scores.reduce((a,s) => a + (Number(s.score)||0), 0);
+    const average = count ? sum / count : null;
+    const completed = totalTeachers > 0 && count >= totalTeachers;
+    const perTeacher = state.teachers.map(te => {
+      const sc = scores.find(s => s.teacherId === te.id);
+      return { teacherName: te.teacherName, score: sc ? sc.score : null };
+    });
+    return { ...t, count, average, completed, perTeacher, totalTeachers };
+  });
+  const completedRows = rows.filter(r => r.completed).sort((a,b) => b.average - a.average);
+  completedRows.forEach((r, i) => r.rank = i + 1);
+  rows.forEach(r => { if(!r.completed) r.rank = null; });
+  return rows;
+}
+
+function renderResultsTab(){
+  if(!state.currentExamId){
+    $('#resultsNoExam').classList.remove('hidden');
+    $('#resultsContent').classList.add('hidden');
+    return;
+  }
+  $('#resultsNoExam').classList.add('hidden');
+  $('#resultsContent').classList.remove('hidden');
+  const ex = state.exams.find(e => e.id === state.currentExamId);
+  $('#resultsExamLabel').textContent = ex ? `（${ex.examName}）` : '';
+
+  const instF = $('#resultsInstFilter').value;
+  let rows = computeResults();
+  if(instF) rows = rows.filter(r => r.instrument === instF);
+  rows.sort((a,b) => {
+    if(a.rank && b.rank) return a.rank - b.rank;
+    if(a.rank) return -1;
+    if(b.rank) return 1;
+    return b.grade - a.grade === 0 ? a.attendanceNumber - b.attendanceNumber : a.grade - b.grade;
+  });
+
+  const teacherCols = state.teachers.map(t => t.teacherName);
+  $('#resultsHeaderRow').innerHTML = `<th>順位</th><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th>` +
+    teacherCols.map(n => `<th>${escapeHtml(n)}</th>`).join('') +
+    `<th>平均点</th><th>採点人数</th><th>状態</th><th></th>`;
+
+  $('#resultsTableBody').innerHTML = rows.map(r => {
+    const teacherCells = r.perTeacher.map(p => `<td>${p.score===null?'-':p.score}</td>`).join('');
+    return `<tr>
+      <td>${r.rank ? r.rank+'位' : '-'}</td>
+      <td>${escapeHtml(r.name)}</td><td>${r.grade}</td><td>${r.attendanceNumber}</td><td>${escapeHtml(r.instrument)}</td>
+      ${teacherCells}
+      <td>${r.average===null?'-':r.average.toFixed(2)}</td>
+      <td>${r.count} / ${r.totalTeachers}</td>
+      <td>${r.completed ? '<span class="tag ok">採点完了</span>' : '<span class="tag warn">未完了</span>'}</td>
+      <td><button data-sid="${r.id}" class="viewResultBtn">個人結果</button></td>
+    </tr>`;
+  }).join('');
+
+  $$('.viewResultBtn').forEach(btn => {
+    btn.onclick = () => showIndividualResultModal(btn.dataset.sid);
+  });
+}
+$('#resultsInstFilter').addEventListener('change', renderResultsTab);
+
+function showIndividualResultModal(studentId){
+  const rows = computeResults();
+  const r = rows.find(x => x.id === studentId);
+  if(!r) return;
+  const bg = openModal(`
+    <h3>個人結果</h3>
+    <p><strong>${escapeHtml(r.name)}</strong>　${r.grade}年 ${r.attendanceNumber}番　${escapeHtml(r.instrument)}</p>
+    <table>
+      <tbody>
+        ${r.perTeacher.map(p => `<tr><td>${escapeHtml(p.teacherName)}</td><td>${p.score===null?'未採点':p.score+'点'}</td></tr>`).join('')}
+        <tr><td><strong>平均</strong></td><td><strong>${r.average===null?'-':r.average.toFixed(2)+'点'}</strong></td></tr>
+        <tr><td>順位</td><td>${r.rank ? r.rank+'位' : '未確定（採点未完了）'}</td></tr>
+      </tbody>
+    </table>
+    <div class="actions"><button id="closeResultModal">閉じる</button></div>
+  `);
+  $('#closeResultModal', bg).onclick = () => closeModal(bg);
+}
+
+/* ========================= 印刷 ========================= */
+function renderPrintTab(){
+  if(!state.currentExamId){
+    $('#printNoExam').classList.remove('hidden');
+    $('#printContent').classList.add('hidden');
+    return;
+  }
+  $('#printNoExam').classList.add('hidden');
+  $('#printContent').classList.remove('hidden');
+  const sel = $('#printStudentSelect');
+  sel.innerHTML = state.targets.slice()
+    .sort((a,b)=> a.grade-b.grade || a.attendanceNumber-b.attendanceNumber)
+    .map(t => `<option value="${t.id}">${escapeHtml(t.name)}（${t.grade}年${t.attendanceNumber}番）</option>`).join('');
+}
+
+$('#printOverallBtn').onclick = () => {
+  const ex = state.exams.find(e => e.id === state.currentExamId);
+  const rows = computeResults().slice().sort((a,b) => {
+    if(a.rank && b.rank) return a.rank - b.rank;
+    if(a.rank) return -1;
+    if(b.rank) return 1;
+    return 0;
+  });
+  const html = `
+    <div class="print-title">実技試験 全体結果</div>
+    <h1>${escapeHtml(ex ? ex.examName : '')}（${escapeHtml(ex ? ex.examDate : '')}）</h1>
+    <table>
+      <thead><tr><th>順位</th><th>氏名</th><th>学年</th><th>出席番号</th><th>楽器</th><th>平均点</th><th>状態</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td>${r.rank ? r.rank+'位' : '-'}</td>
+          <td>${escapeHtml(r.name)}</td><td>${r.grade}</td><td>${r.attendanceNumber}</td><td>${escapeHtml(r.instrument)}</td>
+          <td>${r.average===null?'-':r.average.toFixed(2)}</td>
+          <td>${r.completed?'完了':'未完了'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  $('#printArea').innerHTML = html;
+  window.print();
+};
+
+$('#printIndividualBtn').onclick = () => {
+  const studentId = $('#printStudentSelect').value;
+  const rows = computeResults();
+  const r = rows.find(x => x.id === studentId);
+  if(!r) return;
+  const ex = state.exams.find(e => e.id === state.currentExamId);
+  const html = `
+    <div class="print-title">実技試験結果</div>
+    <h1>${escapeHtml(ex ? ex.examName : '')}（${escapeHtml(ex ? ex.examDate : '')}）</h1>
+    <p>氏名：${escapeHtml(r.name)}<br>学年：${r.grade}年<br>出席番号：${r.attendanceNumber}<br>楽器：${escapeHtml(r.instrument)}</p>
+    <table>
+      <tbody>
+        ${r.perTeacher.map(p => `<tr><td>${escapeHtml(p.teacherName)}</td><td>${p.score===null?'未採点':p.score+'点'}</td></tr>`).join('')}
+        <tr><td><strong>平均</strong></td><td><strong>${r.average===null?'-':r.average.toFixed(2)+'点'}</strong></td></tr>
+        <tr><td>順位</td><td>${r.rank ? r.rank+'位' : '未確定'}</td></tr>
+      </tbody>
+    </table>
+  `;
+  $('#printArea').innerHTML = html;
+  window.print();
+};
+
+/* ========================= util ========================= */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+</script>
+</body>
+</html>
